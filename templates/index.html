@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reconnaissance Faciale</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="logo">&#128248; Reconnaissance Faciale</span>
+      <span class="badge" id="faceCount">0 personne(s)</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="video-wrap">
+      <img id="videoFeed" src="/video_feed" alt="Flux vidéo">
+    </section>
+
+    <aside class="sidebar">
+      <div class="card">
+        <h2>Ajouter une personne</h2>
+        <label for="nameInput">Nom complet</label>
+        <input type="text" id="nameInput" placeholder="Ex : Marouane Mez" autocomplete="off">
+        <button id="captureBtn" onclick="captureFace()">
+          &#128247; Capturer la photo
+        </button>
+        <div id="statusMsg" class="status-msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Personnes enregistrées</h2>
+        <ul id="faceList"><li class="empty">Chargement...</li></ul>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    function loadFaces() {
+      fetch('/faces')
+        .then(r => r.json())
+        .then(faces => {
+          const list = document.getElementById('faceList');
+          const badge = document.getElementById('faceCount');
+          badge.textContent = faces.length + ' personne' + (faces.length > 1 ? 's' : '');
+          list.innerHTML = '';
+          if (faces.length === 0) {
+            list.innerHTML = '<li class="empty">Aucune personne enregistrée</li>';
+            return;
+          }
+          faces.forEach(name => {
+            const li = document.createElement('li');
+            li.innerHTML =
+              '<span class="avatar">' + name.charAt(0).toUpperCase() + '</span>' +
+              '<span class="face-name">' + name + '</span>' +
+              '<button class="del-btn" onclick="deleteFace(\'' + name + '\')">✕</button>';
+            list.appendChild(li);
+          });
+        });
+    }
+
+    function setStatus(msg, type) {
+      const el = document.getElementById('statusMsg');
+      el.textContent = msg;
+      el.className = 'status-msg ' + (type || '');
+    }
+
+    function captureFace() {
+      const name = document.getElementById('nameInput').value.trim();
+      if (!name) { setStatus('Entrez un nom complet.', 'error'); return; }
+
+      const btn = document.getElementById('captureBtn');
+      btn.disabled = true;
+      setStatus('Capture en cours...', '');
+
+      const form = new FormData();
+      form.append('name', name);
+
+      fetch('/add_face', { method: 'POST', body: form })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            setStatus('✓ ' + data.name + ' ajouté(e) !', 'success');
+            document.getElementById('nameInput').value = '';
+            loadFaces();
+          } else {
+            setStatus(data.error || 'Erreur inconnue.', 'error');
+          }
+        })
+        .catch(() => setStatus('Erreur de connexion.', 'error'))
+        .finally(() => { btn.disabled = false; });
+    }
+
+    function deleteFace(name) {
+      if (!confirm('Supprimer ' + name + ' ?')) return;
+      fetch('/delete_face/' + encodeURIComponent(name), { method: 'DELETE' })
+        .then(r => r.json())
+        .then(data => { if (data.success) loadFaces(); });
+    }
+
+    document.getElementById('nameInput').addEventListener('keypress', e => {
+      if (e.key === 'Enter') captureFace();
+    });
+
+    loadFaces();
+  </script>
+</body>
+</html>
