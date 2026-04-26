@@ -31,6 +31,18 @@
       </div>
 
       <div class="card">
+        <h2>Seuil de confiance</h2>
+        <div class="threshold-row">
+          <span class="th-label">Strict</span>
+          <input type="range" id="thresholdSlider" min="0.1" max="0.9" step="0.01" value="0.363">
+          <span class="th-label">Souple</span>
+        </div>
+        <div class="threshold-value">Seuil : <strong id="thresholdVal">0.363</strong></div>
+        <button id="thresholdBtn" onclick="applyThreshold()">Appliquer</button>
+        <div id="thresholdMsg" class="status-msg"></div>
+      </div>
+
+      <div class="card">
         <h2>Personnes enregistrées</h2>
         <ul id="faceList"><li class="empty">Chargement...</li></ul>
       </div>
@@ -103,6 +115,46 @@
     document.getElementById('nameInput').addEventListener('keypress', e => {
       if (e.key === 'Enter') captureFace();
     });
+
+    // ── Threshold ──
+    const slider = document.getElementById('thresholdSlider');
+    const valDisplay = document.getElementById('thresholdVal');
+
+    slider.addEventListener('input', () => {
+      valDisplay.textContent = parseFloat(slider.value).toFixed(2);
+    });
+
+    function applyThreshold() {
+      const value = parseFloat(slider.value);
+      const msg = document.getElementById('thresholdMsg');
+      const btn = document.getElementById('thresholdBtn');
+      btn.disabled = true;
+      fetch('/threshold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value })
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            msg.textContent = '✓ Seuil appliqué : ' + data.threshold.toFixed(2);
+            msg.className = 'status-msg success';
+          } else {
+            msg.textContent = data.error || 'Erreur.';
+            msg.className = 'status-msg error';
+          }
+        })
+        .catch(() => { msg.textContent = 'Erreur.'; msg.className = 'status-msg error'; })
+        .finally(() => { btn.disabled = false; });
+    }
+
+    // Charger le seuil courant au démarrage
+    fetch('/threshold')
+      .then(r => r.json())
+      .then(data => {
+        slider.value = data.threshold;
+        valDisplay.textContent = data.threshold.toFixed(2);
+      });
 
     loadFaces();
   </script>

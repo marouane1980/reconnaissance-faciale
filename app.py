@@ -108,6 +108,19 @@ def get_faces():
     return jsonify(sorted(result))
 
 
+@app.route('/threshold', methods=['GET', 'POST'])
+def threshold():
+    if request.method == 'POST':
+        try:
+            value = float(request.json.get('value', 0.363))
+            value = max(0.1, min(0.9, value))
+            _recognizer.threshold = value
+            return jsonify({'success': True, 'threshold': value})
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Valeur invalide'}), 400
+    return jsonify({'threshold': _recognizer.threshold})
+
+
 @app.route('/delete_face/<name>', methods=['DELETE'])
 def delete_face(name):
     filename = name.lower().replace(' ', '_') + '.jpg'

@@ -186,3 +186,40 @@ input[type="text"]::placeholder { color: #484f58; }
   transition: color .15s, background .15s;
 }
 .del-btn:hover { color: #f85149; background: #da363622; }
+
+/* ── Threshold ── */
+.threshold-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.th-label { font-size: .75rem; color: #8b949e; white-space: nowrap; }
+
+input[type="range"] {
+  flex: 1;
+  accent-color: #58a6ff;
+  cursor: pointer;
+  height: 4px;
+}
+.threshold-value {
+  font-size: .85rem;
+  color: #8b949e;
+  margin-bottom: 10px;
+}
+.threshold-value strong { color: #58a6ff; }
+
+#thresholdBtn {
+  width: 100%;
+  padding: 9px;
+  background: #1f3a5f;
+  border: 1px solid #1f6feb;
+  border-radius: 8px;
+  color: #58a6ff;
+  font-size: .88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+}
+#thresholdBtn:hover { background: #1f6feb33; }
+#thresholdBtn:disabled { opacity: .5; cursor: not-allowed; }
