@@ -6,7 +6,7 @@ import numpy as np
 class FaceRecognizer:
     """Reconnaissance faciale via OpenCV LBPH avec augmentation de données."""
 
-    def __init__(self, known_faces_dir="known_faces", threshold=55):
+    def __init__(self, known_faces_dir="known_faces", threshold=65):
         self.threshold = threshold
         self.known_names = []
         self.detector = cv2.CascadeClassifier(
