@@ -25,18 +25,17 @@
       <div class="card">
         <h2>Ajouter une personne</h2>
 
-        <!-- Étape 0 : formulaire -->
+        <!-- Formulaire initial -->
         <div id="formStep">
           <label for="nameInput">Nom complet</label>
           <input type="text" id="nameInput" placeholder="Ex : Marouane Mez" autocomplete="off">
-          <button id="startBtn" onclick="startWizard()">&#128247; Commencer la capture</button>
+          <button class="btn-primary" onclick="startWizard()">&#128247; Commencer la capture</button>
           <div id="statusMsg" class="status-msg"></div>
         </div>
 
-        <!-- Étape 1-5 : wizard -->
-        <div id="wizardStep" style="display:none">
+        <!-- Wizard 5 profils -->
+        <div id="wizardStep" class="hidden">
           <div class="wizard-name" id="wizardName"></div>
-
           <div class="progress-dots" id="progressDots"></div>
 
           <div class="profile-card">
@@ -44,16 +43,15 @@
             <div class="profile-label" id="profileLabel"></div>
           </div>
 
-          <div class="countdown-wrap">
-            <svg class="countdown-ring" viewBox="0 0 60 60">
-              <circle cx="30" cy="30" r="26" class="ring-bg"/>
-              <circle cx="30" cy="30" r="26" class="ring-fg" id="ringFg"/>
-            </svg>
-            <span class="countdown-num" id="countdownNum">3</span>
+          <div class="countdown-bar-wrap">
+            <div class="countdown-num" id="countdownNum">3</div>
+            <div class="countdown-bar">
+              <div class="countdown-fill" id="countdownFill"></div>
+            </div>
           </div>
 
           <div id="wizardMsg" class="status-msg"></div>
-          <button class="cancel-btn" onclick="cancelWizard()">✕ Annuler</button>
+          <button class="btn-cancel" onclick="cancelWizard()">✕ Annuler</button>
         </div>
       </div>
 
@@ -66,7 +64,7 @@
           <span class="th-label">Souple</span>
         </div>
         <div class="threshold-value">Seuil : <strong id="thresholdVal">0.363</strong></div>
-        <button id="thresholdBtn" onclick="applyThreshold()">Appliquer</button>
+        <button class="btn-secondary" onclick="applyThreshold()">Appliquer</button>
         <div id="thresholdMsg" class="status-msg"></div>
       </div>
 
@@ -80,43 +78,47 @@
   </main>
 
   <script>
-    const PROFILES = [
+    var PROFILES = [
       { icon: '👁️',  label: 'Regardez <strong>droit devant</strong> la caméra' },
       { icon: '↙️',  label: 'Tournez <strong>légèrement à gauche</strong>' },
       { icon: '↘️',  label: 'Tournez <strong>légèrement à droite</strong>' },
       { icon: '⬆️',  label: 'Levez <strong>légèrement le menton</strong>' },
-      { icon: '⬇️',  label: 'Baissez <strong>légèrement le menton</strong>' },
+      { icon: '⬇️',  label: 'Baissez <strong>légèrement le menton</strong>' }
     ];
-    const TOTAL = PROFILES.length;
-    const COUNTDOWN = 3;
+    var TOTAL = PROFILES.length;
+    var COUNTDOWN_SEC = 3;
 
-    let wizardName = '';
-    let currentStep = 0;
-    let countdownTimer = null;
-    let countdownVal = COUNTDOWN;
+    var wizardName = '';
+    var currentStep = 0;
+    var countdownTimer = null;
+    var countdownVal = COUNTDOWN_SEC;
 
-    // ── Progress dots ──
-    function renderDots(active) {
-      const el = document.getElementById('progressDots');
-      el.innerHTML = PROFILES.map((_, i) =>
-        `<span class="dot ${i < active ? 'done' : i === active ? 'active' : ''}"></span>`
-      ).join('');
+    function renderDots(done) {
+      var html = '';
+      for (var i = 0; i < TOTAL; i++) {
+        var cls = i < done ? 'dot done' : (i === done ? 'dot active' : 'dot');
+        html += '<span class="' + cls + '"></span>';
+      }
+      document.getElementById('progressDots').innerHTML = html;
     }
 
-    // ── Wizard ──
     function startWizard() {
-      const name = document.getElementById('nameInput').value.trim();
-      if (!name) { setStatus('Entrez un nom complet.', 'error'); return; }
+      var name = document.getElementById('nameInput').value.trim();
+      if (!name) {
+        document.getElementById('statusMsg').textContent = 'Entrez un nom complet.';
+        document.getElementById('statusMsg').className = 'status-msg error';
+        return;
+      }
       wizardName = name;
       currentStep = 0;
-      document.getElementById('formStep').style.display = 'none';
-      document.getElementById('wizardStep').style.display = 'block';
+      document.getElementById('formStep').classList.add('hidden');
+      document.getElementById('wizardStep').classList.remove('hidden');
       document.getElementById('wizardName').textContent = wizardName;
       runStep();
     }
 
     function runStep() {
-      const p = PROFILES[currentStep];
+      var p = PROFILES[currentStep];
       document.getElementById('profileIcon').textContent = p.icon;
       document.getElementById('profileLabel').innerHTML = p.label;
       document.getElementById('wizardMsg').textContent = '';
@@ -126,14 +128,21 @@
     }
 
     function startCountdown() {
-      countdownVal = COUNTDOWN;
-      updateRing(countdownVal);
+      countdownVal = COUNTDOWN_SEC;
       document.getElementById('countdownNum').textContent = countdownVal;
+      document.getElementById('countdownFill').style.width = '100%';
+      document.getElementById('countdownFill').style.transition = 'none';
+
       clearInterval(countdownTimer);
-      countdownTimer = setInterval(() => {
+
+      setTimeout(function() {
+        document.getElementById('countdownFill').style.transition = 'width ' + COUNTDOWN_SEC + 's linear';
+        document.getElementById('countdownFill').style.width = '0%';
+      }, 50);
+
+      countdownTimer = setInterval(function() {
         countdownVal--;
         document.getElementById('countdownNum').textContent = countdownVal;
-        updateRing(countdownVal);
         if (countdownVal <= 0) {
           clearInterval(countdownTimer);
           captureStep();
@@ -141,137 +150,119 @@
       }, 1000);
     }
 
-    function updateRing(remaining) {
-      const circle = document.getElementById('ringFg');
-      const r = 26;
-      const circ = 2 * Math.PI * r;
-      const progress = remaining / COUNTDOWN;
-      circle.style.strokeDasharray = circ;
-      circle.style.strokeDashoffset = circ * (1 - progress);
-    }
-
     function captureStep() {
-      const step = currentStep + 1;
-      const msg = document.getElementById('wizardMsg');
-      msg.textContent = 'Capture...';
+      var step = currentStep + 1;
+      var msg = document.getElementById('wizardMsg');
+      msg.textContent = 'Capture en cours...';
       msg.className = 'status-msg';
 
       fetch('/capture_profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: wizardName, step, total: TOTAL })
+        body: JSON.stringify({ name: wizardName, step: step, total: TOTAL })
       })
-        .then(r => r.json())
-        .then(data => {
-          if (!data.success) {
-            msg.textContent = data.error || 'Erreur — réessai dans 2s';
-            msg.className = 'status-msg error';
-            setTimeout(startCountdown, 2000);
-            return;
-          }
-          if (data.done) {
-            renderDots(TOTAL);
-            msg.textContent = '✓ ' + wizardName + ' enregistré(e) !';
-            msg.className = 'status-msg success';
-            document.getElementById('nameInput').value = '';
-            loadFaces();
-            setTimeout(cancelWizard, 2000);
-          } else {
-            currentStep++;
-            runStep();
-          }
-        })
-        .catch(() => {
-          msg.textContent = 'Erreur réseau — réessai dans 2s';
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) {
+          msg.textContent = data.error || 'Erreur — réessai dans 2s';
           msg.className = 'status-msg error';
           setTimeout(startCountdown, 2000);
-        });
+          return;
+        }
+        if (data.done) {
+          renderDots(TOTAL);
+          msg.textContent = '✓ ' + wizardName + ' enregistré(e) avec ' + TOTAL + ' profils !';
+          msg.className = 'status-msg success';
+          document.getElementById('nameInput').value = '';
+          loadFaces();
+          setTimeout(cancelWizard, 2500);
+        } else {
+          currentStep++;
+          runStep();
+        }
+      })
+      .catch(function() {
+        msg.textContent = 'Erreur réseau — réessai dans 2s';
+        msg.className = 'status-msg error';
+        setTimeout(startCountdown, 2000);
+      });
     }
 
     function cancelWizard() {
       clearInterval(countdownTimer);
-      document.getElementById('wizardStep').style.display = 'none';
-      document.getElementById('formStep').style.display = 'block';
+      document.getElementById('wizardStep').classList.add('hidden');
+      document.getElementById('formStep').classList.remove('hidden');
       document.getElementById('wizardMsg').textContent = '';
-    }
-
-    function setStatus(msg, type) {
-      const el = document.getElementById('statusMsg');
-      el.textContent = msg;
-      el.className = 'status-msg ' + (type || '');
     }
 
     // ── Face list ──
     function loadFaces() {
       fetch('/faces')
-        .then(r => r.json())
-        .then(faces => {
-          const list = document.getElementById('faceList');
-          const badge = document.getElementById('faceCount');
-          badge.textContent = faces.length + ' personne' + (faces.length > 1 ? 's' : '');
-          list.innerHTML = '';
-          if (faces.length === 0) {
-            list.innerHTML = '<li class="empty">Aucune personne enregistrée</li>';
-            return;
-          }
-          faces.forEach(({ name, profiles }) => {
-            const li = document.createElement('li');
-            li.innerHTML =
-              '<span class="avatar">' + name.charAt(0).toUpperCase() + '</span>' +
-              '<span class="face-info"><span class="face-name">' + name + '</span>' +
-              '<span class="face-profiles">' + profiles + ' profil' + (profiles > 1 ? 's' : '') + '</span></span>' +
-              '<button class="del-btn" onclick="deleteFace(\'' + name + '\')">✕</button>';
-            list.appendChild(li);
-          });
+      .then(function(r) { return r.json(); })
+      .then(function(faces) {
+        var list = document.getElementById('faceList');
+        var badge = document.getElementById('faceCount');
+        badge.textContent = faces.length + ' personne' + (faces.length > 1 ? 's' : '');
+        list.innerHTML = '';
+        if (faces.length === 0) {
+          list.innerHTML = '<li class="empty">Aucune personne enregistrée</li>';
+          return;
+        }
+        faces.forEach(function(item) {
+          var li = document.createElement('li');
+          li.innerHTML =
+            '<span class="avatar">' + item.name.charAt(0).toUpperCase() + '</span>' +
+            '<span class="face-info">' +
+              '<span class="face-name">' + item.name + '</span>' +
+              '<span class="face-profiles">' + item.profiles + ' profil' + (item.profiles > 1 ? 's' : '') + '</span>' +
+            '</span>' +
+            '<button class="del-btn" onclick="deleteFace(\'' + item.name + '\')">✕</button>';
+          list.appendChild(li);
         });
+      });
     }
 
     function deleteFace(name) {
       if (!confirm('Supprimer ' + name + ' ?')) return;
       fetch('/delete_face/' + encodeURIComponent(name), { method: 'DELETE' })
-        .then(r => r.json())
-        .then(data => { if (data.success) loadFaces(); });
+      .then(function(r) { return r.json(); })
+      .then(function(data) { if (data.success) loadFaces(); });
     }
 
     // ── Threshold ──
-    const slider = document.getElementById('thresholdSlider');
-    const valDisplay = document.getElementById('thresholdVal');
-    slider.addEventListener('input', () => {
-      valDisplay.textContent = parseFloat(slider.value).toFixed(2);
+    var slider = document.getElementById('thresholdSlider');
+    slider.addEventListener('input', function() {
+      document.getElementById('thresholdVal').textContent = parseFloat(slider.value).toFixed(2);
     });
 
     function applyThreshold() {
-      const value = parseFloat(slider.value);
-      const msg = document.getElementById('thresholdMsg');
-      const btn = document.getElementById('thresholdBtn');
-      btn.disabled = true;
+      var value = parseFloat(slider.value);
+      var msg = document.getElementById('thresholdMsg');
       fetch('/threshold', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value })
+        body: JSON.stringify({ value: value })
       })
-        .then(r => r.json())
-        .then(data => {
-          if (data.success) {
-            msg.textContent = '✓ Seuil appliqué : ' + data.threshold.toFixed(2);
-            msg.className = 'status-msg success';
-          } else {
-            msg.textContent = data.error || 'Erreur.';
-            msg.className = 'status-msg error';
-          }
-        })
-        .catch(() => { msg.textContent = 'Erreur.'; msg.className = 'status-msg error'; })
-        .finally(() => { btn.disabled = false; });
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          msg.textContent = '✓ Seuil : ' + data.threshold.toFixed(2);
+          msg.className = 'status-msg success';
+        } else {
+          msg.textContent = data.error || 'Erreur.';
+          msg.className = 'status-msg error';
+        }
+      });
     }
 
     fetch('/threshold')
-      .then(r => r.json())
-      .then(data => {
-        slider.value = data.threshold;
-        valDisplay.textContent = data.threshold.toFixed(2);
-      });
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      slider.value = data.threshold;
+      document.getElementById('thresholdVal').textContent = data.threshold.toFixed(2);
+    });
 
-    document.getElementById('nameInput').addEventListener('keypress', e => {
+    document.getElementById('nameInput').addEventListener('keypress', function(e) {
       if (e.key === 'Enter') startWizard();
     });
 
