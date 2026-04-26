@@ -17,7 +17,7 @@ class FaceRecognizer:
         self.known = []  # [(name, feature_vector), ...]
 
         self.detector = cv2.FaceDetectorYN.create(
-            YUNET, "", (320, 320), 0.9, 0.3, 5000
+            YUNET, "", (320, 320), 0.6, 0.3, 5000
         )
         self.sf = cv2.FaceRecognizerSF.create(SFACE, "")
         self.load_known_faces()
@@ -29,8 +29,11 @@ class FaceRecognizer:
         return faces if faces is not None else np.empty((0, 15), dtype=np.float32)
 
     def _feature(self, frame, face_row):
-        aligned = self.sf.alignCrop(frame, face_row)
-        return self.sf.feature(aligned)
+        try:
+            aligned = self.sf.alignCrop(frame, face_row)
+            return self.sf.feature(aligned)
+        except cv2.error:
+            return None
 
     def load_known_faces(self):
         self.known = []
@@ -60,12 +63,13 @@ class FaceRecognizer:
             name = "Inconnu"
             if self.known:
                 feat = self._feature(frame, face)
-                best_score, best_name = -1.0, "Inconnu"
-                for kname, kfeat in self.known:
-                    score = self.sf.match(feat, kfeat, 0)  # 0 = cosine
-                    if score > best_score:
-                        best_score, best_name = score, kname
-                if best_score >= self.threshold:
-                    name = best_name
+                if feat is not None:
+                    best_score, best_name = -1.0, "Inconnu"
+                    for kname, kfeat in self.known:
+                        score = self.sf.match(feat, kfeat, 0)  # 0 = cosine
+                        if score > best_score:
+                            best_score, best_name = score, kname
+                    if best_score >= self.threshold:
+                        name = best_name
             results.append((x, y, w, h, name))
         return results
