@@ -77,11 +77,17 @@ def video_feed():
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
-@app.route('/add_face', methods=['POST'])
-def add_face():
-    name = request.form.get('name', '').strip()
+@app.route('/capture_profile', methods=['POST'])
+def capture_profile():
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    step = int(data.get('step', 1))
+    total = int(data.get('total', 5))
+
     if not name:
-        return jsonify({'error': 'Nom complet requis'}), 400
+        return jsonify({'error': 'Nom requis'}), 400
+    if not 1 <= step <= total:
+        return jsonify({'error': 'Étape invalide'}), 400
 
     with _lock:
         frame = _frame.copy() if _frame is not None else None
@@ -90,22 +96,31 @@ def add_face():
 
     faces = _recognizer.detect_faces(frame)
     if len(faces) == 0:
-        return jsonify({'error': 'Aucun visage détecté — rapprochez-vous de la caméra'}), 400
+        return jsonify({'error': 'Aucun visage détecté — rapprochez-vous'}), 400
 
-    filename = name.lower().replace(' ', '_') + '.jpg'
-    cv2.imwrite(os.path.join('known_faces', filename), frame)
-    _recognizer.load_known_faces()
+    slug = name.lower().replace(' ', '_')
+    person_dir = os.path.join('known_faces', slug)
+    os.makedirs(person_dir, exist_ok=True)
+    cv2.imwrite(os.path.join(person_dir, f'profile_{step}.jpg'), frame)
 
-    return jsonify({'success': True, 'name': name})
+    if step == total:
+        _recognizer.load_known_faces()
+        return jsonify({'success': True, 'done': True, 'name': name})
+
+    return jsonify({'success': True, 'done': False, 'step': step})
 
 
 @app.route('/faces')
 def get_faces():
     result = []
-    for f in os.listdir('known_faces'):
-        if f.lower().endswith(('.jpg', '.jpeg', '.png')):
-            result.append(os.path.splitext(f)[0].replace('_', ' ').title())
-    return jsonify(sorted(result))
+    for item in os.listdir('known_faces'):
+        item_path = os.path.join('known_faces', item)
+        if os.path.isdir(item_path):
+            profiles = [f for f in os.listdir(item_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+            result.append({'name': item.replace('_', ' ').title(), 'profiles': len(profiles)})
+        elif item.lower().endswith(('.jpg', '.jpeg', '.png')):
+            result.append({'name': os.path.splitext(item)[0].replace('_', ' ').title(), 'profiles': 1})
+    return jsonify(sorted(result, key=lambda x: x['name']))
 
 
 @app.route('/threshold', methods=['GET', 'POST'])
@@ -123,10 +138,16 @@ def threshold():
 
 @app.route('/delete_face/<name>', methods=['DELETE'])
 def delete_face(name):
-    filename = name.lower().replace(' ', '_') + '.jpg'
-    path = os.path.join('known_faces', filename)
-    if os.path.exists(path):
-        os.remove(path)
+    import shutil
+    slug = name.lower().replace(' ', '_')
+    folder = os.path.join('known_faces', slug)
+    single = folder + '.jpg'
+    if os.path.isdir(folder):
+        shutil.rmtree(folder)
+        _recognizer.load_known_faces()
+        return jsonify({'success': True})
+    if os.path.exists(single):
+        os.remove(single)
         _recognizer.load_known_faces()
         return jsonify({'success': True})
     return jsonify({'error': 'Introuvable'}), 404

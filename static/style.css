@@ -223,3 +223,83 @@ input[type="range"] {
 }
 #thresholdBtn:hover { background: #1f6feb33; }
 #thresholdBtn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Wizard ── */
+.wizard-name {
+  font-size: .95rem;
+  font-weight: 600;
+  color: #58a6ff;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.progress-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #21262d;
+  border: 2px solid #30363d;
+  transition: all .3s;
+}
+.dot.active { background: #58a6ff; border-color: #58a6ff; transform: scale(1.2); }
+.dot.done   { background: #3fb950; border-color: #3fb950; }
+
+.profile-card {
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.profile-icon  { font-size: 2rem; margin-bottom: 6px; }
+.profile-label { font-size: .88rem; color: #8b949e; line-height: 1.4; }
+.profile-label strong { color: #c9d1d9; }
+
+.countdown-wrap {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 12px;
+}
+.countdown-ring { width: 64px; height: 64px; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: #21262d; stroke-width: 5; }
+.ring-fg {
+  fill: none;
+  stroke: #58a6ff;
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset .9s linear;
+}
+.countdown-num {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #58a6ff;
+}
+
+.cancel-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  background: none;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  color: #8b949e;
+  font-size: .85rem;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.cancel-btn:hover { color: #f85149; border-color: #f85149; }
+
+/* ── Face list with profiles count ── */
+.face-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.face-profiles { font-size: .72rem; color: #484f58; }
