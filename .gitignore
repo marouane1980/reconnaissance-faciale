@@ -15,3 +15,5 @@ build/
 captured_faces/*.jpg
 captured_faces/*.png
 models/*.onnx
+.secret_key
+users.json
