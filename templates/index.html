@@ -3,107 +3,198 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reconnaissance Faciale</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <title>Face Recognition — Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+    .countdown-fill { transition: width 3s linear; }
+    .dot { width:10px; height:10px; border-radius:50%; background:#21262d; border:2px solid #30363d; display:inline-block; transition:all .3s; }
+    .dot.active { background:#3b82f6; border-color:#3b82f6; transform:scale(1.2); }
+    .dot.done   { background:#22c55e; border-color:#22c55e; }
+  </style>
 </head>
-<body>
-  <header>
-    <div class="header-inner">
-      <span class="logo">&#128248; Reconnaissance Faciale</span>
-      <span class="badge" id="faceCount">0 personne(s)</span>
+<body class="bg-[#0d1117] text-gray-300 h-screen flex flex-col overflow-hidden">
+
+  <!-- ── Header ── -->
+  <header class="bg-[#161b22] border-b border-[#21262d] px-6 h-14 flex items-center justify-between flex-shrink-0">
+    <div class="flex items-center gap-3">
+      <span class="text-2xl">📸</span>
+      <span class="text-white font-semibold text-base">Face Recognition</span>
+      <span class="text-gray-600 text-sm hidden sm:inline">/ Dashboard</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="bg-green-900/30 text-green-400 border border-green-900 rounded-full px-3 py-0.5 text-xs font-semibold" id="badgeIdentified">✓ 0 identifié(s)</span>
+      <span class="bg-red-900/30 text-red-400 border border-red-900 rounded-full px-3 py-0.5 text-xs font-semibold" id="badgeUnknown">? 0 inconnu(s)</span>
+      <span class="bg-[#1f6feb22] text-blue-400 border border-blue-900 rounded-full px-3 py-0.5 text-xs font-semibold" id="badgeTotal">⊙ 0 total</span>
     </div>
   </header>
 
-  <main>
-    <section class="video-section">
-      <div class="stats-bar">
-        <span class="stat identified">&#10003; Identifiés : <strong id="statIdentified">0</strong></span>
-        <span class="stat unknown">&#63; Inconnus : <strong id="statUnknown">0</strong></span>
-        <span class="stat total">Total : <strong id="statTotal">0</strong></span>
+  <!-- ── Body ── -->
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- ── Left : Video + Stats ── -->
+    <main class="flex-1 flex flex-col p-4 gap-4 overflow-hidden min-w-0">
+
+      <!-- Stats cards -->
+      <div class="grid grid-cols-3 gap-3 flex-shrink-0">
+        <div class="bg-[#161b22] border border-[#21262d] rounded-xl p-4 text-center">
+          <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Total détectés</p>
+          <p class="text-3xl font-bold text-blue-400" id="statTotal">0</p>
+        </div>
+        <div class="bg-[#161b22] border border-green-900/50 rounded-xl p-4 text-center">
+          <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Identifiés</p>
+          <p class="text-3xl font-bold text-green-400" id="statIdentified">0</p>
+        </div>
+        <div class="bg-[#161b22] border border-red-900/50 rounded-xl p-4 text-center">
+          <p class="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Inconnus</p>
+          <p class="text-3xl font-bold text-red-400" id="statUnknown">0</p>
+        </div>
       </div>
-      <div class="video-wrap">
-        <img id="videoFeed" src="/video_feed" alt="Flux vidéo">
+
+      <!-- Video -->
+      <div class="flex-1 bg-black rounded-xl border border-[#21262d] overflow-hidden flex items-center justify-center min-h-0">
+        <img src="/video_feed" alt="Flux vidéo" class="w-full h-full object-contain block">
       </div>
-    </section>
+    </main>
 
-    <aside class="sidebar">
+    <!-- ── Right : Sidebar Menu ── -->
+    <aside class="w-80 bg-[#161b22] border-l border-[#21262d] flex flex-col overflow-hidden flex-shrink-0">
 
-      <!-- Ajouter une personne -->
-      <div class="card">
-        <h2>Ajouter une personne</h2>
+      <!-- Tab navigation -->
+      <nav class="flex border-b border-[#21262d] flex-shrink-0">
+        <button onclick="showPanel('add')"      id="tab-add"      class="tab-btn flex-1 py-3 text-xs font-semibold uppercase tracking-wider transition-colors">Ajouter</button>
+        <button onclick="showPanel('people')"   id="tab-people"   class="tab-btn flex-1 py-3 text-xs font-semibold uppercase tracking-wider transition-colors">Personnes</button>
+        <button onclick="showPanel('settings')" id="tab-settings" class="tab-btn flex-1 py-3 text-xs font-semibold uppercase tracking-wider transition-colors">Réglages</button>
+      </nav>
 
-        <!-- Formulaire initial -->
+      <!-- ── Panel : Ajouter ── -->
+      <div id="panel-add" class="panel flex-1 overflow-y-auto p-5 hidden">
+
+        <!-- Formulaire -->
         <div id="formStep">
-          <label for="nameInput">Nom complet</label>
-          <input type="text" id="nameInput" placeholder="Ex : Marouane Mez" autocomplete="off">
-          <button class="btn-primary" onclick="startWizard()">&#128247; Commencer la capture</button>
-          <div id="statusMsg" class="status-msg"></div>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-4">Nouveau profil</p>
+          <label class="block text-xs text-gray-500 mb-1.5">Nom complet</label>
+          <input type="text" id="nameInput" placeholder="Ex : Marouane Mez" autocomplete="off"
+            class="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-blue-500 mb-3 transition-colors placeholder-gray-600">
+          <button onclick="startWizard()"
+            class="w-full bg-green-700 hover:bg-green-600 border border-green-600 text-white font-semibold rounded-lg py-2.5 text-sm transition-colors">
+            📷 Commencer la capture
+          </button>
+          <div id="statusMsg" class="mt-3 text-xs rounded-lg min-h-[20px]"></div>
         </div>
 
-        <!-- Wizard 5 profils -->
+        <!-- Wizard -->
         <div id="wizardStep" class="hidden">
-          <div class="wizard-name" id="wizardName"></div>
-          <div class="progress-dots" id="progressDots"></div>
+          <div class="text-center text-blue-400 font-semibold text-sm mb-3" id="wizardName"></div>
 
-          <div class="profile-card">
-            <div class="profile-icon" id="profileIcon"></div>
-            <div class="profile-label" id="profileLabel"></div>
+          <div class="flex justify-center gap-2 mb-4" id="progressDots"></div>
+
+          <div class="bg-[#0d1117] border border-[#21262d] rounded-xl p-4 text-center mb-4">
+            <div class="text-3xl mb-2" id="profileIcon"></div>
+            <div class="text-xs text-gray-400 leading-relaxed" id="profileLabel"></div>
           </div>
 
-          <div class="countdown-bar-wrap">
-            <div class="countdown-num" id="countdownNum">3</div>
-            <div class="countdown-bar">
-              <div class="countdown-fill" id="countdownFill"></div>
+          <div class="mb-3">
+            <div class="text-center text-3xl font-bold text-blue-400 mb-2" id="countdownNum">3</div>
+            <div class="h-1.5 bg-[#21262d] rounded-full overflow-hidden">
+              <div class="countdown-fill h-full bg-blue-500 rounded-full w-full" id="countdownFill"></div>
             </div>
           </div>
 
-          <div id="wizardMsg" class="status-msg"></div>
-          <button class="btn-cancel" onclick="cancelWizard()">✕ Annuler</button>
+          <div id="wizardMsg" class="text-xs rounded-lg min-h-[20px] mb-2"></div>
+          <button onclick="cancelWizard()"
+            class="w-full border border-[#30363d] text-gray-500 hover:text-red-400 hover:border-red-800 rounded-lg py-2 text-xs transition-colors">
+            ✕ Annuler
+          </button>
         </div>
       </div>
 
-      <!-- Seuil de confiance -->
-      <div class="card">
-        <h2>Seuil de confiance</h2>
-        <div class="threshold-row">
-          <span class="th-label">Strict</span>
-          <input type="range" id="thresholdSlider" min="0.1" max="0.9" step="0.01" value="0.363">
-          <span class="th-label">Souple</span>
+      <!-- ── Panel : Personnes ── -->
+      <div id="panel-people" class="panel flex-1 overflow-y-auto p-5 hidden">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Enregistrées</p>
+          <span class="bg-[#1f6feb22] text-blue-400 text-xs px-2 py-0.5 rounded-full border border-blue-900" id="faceCount">0</span>
         </div>
-        <div class="threshold-value">Seuil : <strong id="thresholdVal">0.363</strong></div>
-        <button class="btn-secondary" onclick="applyThreshold()">Appliquer</button>
-        <div id="thresholdMsg" class="status-msg"></div>
+        <ul id="faceList" class="flex flex-col gap-2">
+          <li class="text-gray-600 text-xs text-center italic py-4">Chargement...</li>
+        </ul>
       </div>
 
-      <!-- Personnes enregistrées -->
-      <div class="card">
-        <h2>Personnes enregistrées</h2>
-        <ul id="faceList"><li class="empty">Chargement...</li></ul>
+      <!-- ── Panel : Réglages ── -->
+      <div id="panel-settings" class="panel flex-1 overflow-y-auto p-5 hidden">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-4">Seuil de confiance</p>
+
+        <div class="bg-[#0d1117] border border-[#21262d] rounded-xl p-4 mb-4">
+          <div class="flex justify-between text-xs text-gray-500 mb-2">
+            <span>Strict</span>
+            <span class="text-blue-400 font-bold text-sm" id="thresholdVal">0.363</span>
+            <span>Souple</span>
+          </div>
+          <input type="range" id="thresholdSlider" min="0.1" max="0.9" step="0.01" value="0.363"
+            class="w-full accent-blue-500 cursor-pointer">
+          <div class="flex justify-between text-[10px] text-gray-600 mt-1">
+            <span>0.1</span><span>0.5</span><span>0.9</span>
+          </div>
+        </div>
+
+        <div class="bg-[#0d1117] border border-[#21262d] rounded-xl p-3 mb-4 text-xs text-gray-500 leading-relaxed">
+          <p class="text-gray-400 font-medium mb-1">Guide :</p>
+          <p>• <span class="text-green-400">0.1 – 0.3</span> : très strict</p>
+          <p>• <span class="text-blue-400">0.363</span> : valeur recommandée</p>
+          <p>• <span class="text-yellow-400">0.5 – 0.9</span> : souple (faux positifs)</p>
+        </div>
+
+        <button onclick="applyThreshold()"
+          class="w-full bg-[#1f3a5f] hover:bg-[#1f6feb33] border border-blue-800 text-blue-400 font-semibold rounded-lg py-2.5 text-sm transition-colors">
+          Appliquer
+        </button>
+        <div id="thresholdMsg" class="mt-3 text-xs rounded-lg min-h-[20px]"></div>
       </div>
 
     </aside>
-  </main>
+  </div>
 
   <script>
+    // ── Tab system ──
+    var TABS = ['add', 'people', 'settings'];
+
+    function showPanel(name) {
+      TABS.forEach(function(t) {
+        var tab = document.getElementById('tab-' + t);
+        var panel = document.getElementById('panel-' + t);
+        if (t === name) {
+          tab.classList.add('text-blue-400', 'border-b-2', 'border-blue-500');
+          tab.classList.remove('text-gray-500');
+          panel.classList.remove('hidden');
+        } else {
+          tab.classList.remove('text-blue-400', 'border-b-2', 'border-blue-500');
+          tab.classList.add('text-gray-500');
+          panel.classList.add('hidden');
+        }
+      });
+      if (name === 'people') loadFaces();
+    }
+    showPanel('add');
+
+    // ── Wizard ──
     var PROFILES = [
-      { icon: '👁️',  label: 'Regardez <strong>droit devant</strong> la caméra' },
-      { icon: '↙️',  label: 'Tournez <strong>légèrement à gauche</strong>' },
-      { icon: '↘️',  label: 'Tournez <strong>légèrement à droite</strong>' },
-      { icon: '⬆️',  label: 'Levez <strong>légèrement le menton</strong>' },
-      { icon: '⬇️',  label: 'Baissez <strong>légèrement le menton</strong>' }
+      { icon: '👁️', label: 'Regardez <strong class="text-gray-200">droit devant</strong> la caméra' },
+      { icon: '↙️', label: 'Tournez <strong class="text-gray-200">légèrement à gauche</strong>' },
+      { icon: '↘️', label: 'Tournez <strong class="text-gray-200">légèrement à droite</strong>' },
+      { icon: '⬆️', label: 'Levez <strong class="text-gray-200">légèrement le menton</strong>' },
+      { icon: '⬇️', label: 'Baissez <strong class="text-gray-200">légèrement le menton</strong>' }
     ];
     var TOTAL = PROFILES.length;
     var COUNTDOWN_SEC = 3;
-
-    var wizardName = '';
-    var currentStep = 0;
-    var countdownTimer = null;
-    var countdownVal = COUNTDOWN_SEC;
+    var wizardName = '', currentStep = 0, countdownTimer = null, countdownVal = COUNTDOWN_SEC;
 
     function renderDots(done) {
       var html = '';
       for (var i = 0; i < TOTAL; i++) {
-        var cls = i < done ? 'dot done' : (i === done ? 'dot active' : 'dot');
+        var cls = 'dot' + (i < done ? ' done' : (i === done ? ' active' : ''));
         html += '<span class="' + cls + '"></span>';
       }
       document.getElementById('progressDots').innerHTML = html;
@@ -111,11 +202,7 @@
 
     function startWizard() {
       var name = document.getElementById('nameInput').value.trim();
-      if (!name) {
-        document.getElementById('statusMsg').textContent = 'Entrez un nom complet.';
-        document.getElementById('statusMsg').className = 'status-msg error';
-        return;
-      }
+      if (!name) { showStatus('statusMsg', 'Entrez un nom complet.', 'error'); return; }
       wizardName = name;
       currentStep = 0;
       document.getElementById('formStep').classList.add('hidden');
@@ -128,8 +215,7 @@
       var p = PROFILES[currentStep];
       document.getElementById('profileIcon').textContent = p.icon;
       document.getElementById('profileLabel').innerHTML = p.label;
-      document.getElementById('wizardMsg').textContent = '';
-      document.getElementById('wizardMsg').className = 'status-msg';
+      clearStatus('wizardMsg');
       renderDots(currentStep);
       startCountdown();
     }
@@ -137,49 +223,38 @@
     function startCountdown() {
       countdownVal = COUNTDOWN_SEC;
       document.getElementById('countdownNum').textContent = countdownVal;
-      document.getElementById('countdownFill').style.width = '100%';
-      document.getElementById('countdownFill').style.transition = 'none';
-
+      var fill = document.getElementById('countdownFill');
+      fill.style.transition = 'none';
+      fill.style.width = '100%';
       clearInterval(countdownTimer);
-
       setTimeout(function() {
-        document.getElementById('countdownFill').style.transition = 'width ' + COUNTDOWN_SEC + 's linear';
-        document.getElementById('countdownFill').style.width = '0%';
+        fill.style.transition = 'width ' + COUNTDOWN_SEC + 's linear';
+        fill.style.width = '0%';
       }, 50);
-
       countdownTimer = setInterval(function() {
         countdownVal--;
         document.getElementById('countdownNum').textContent = countdownVal;
-        if (countdownVal <= 0) {
-          clearInterval(countdownTimer);
-          captureStep();
-        }
+        if (countdownVal <= 0) { clearInterval(countdownTimer); captureStep(); }
       }, 1000);
     }
 
     function captureStep() {
-      var step = currentStep + 1;
-      var msg = document.getElementById('wizardMsg');
-      msg.textContent = 'Capture en cours...';
-      msg.className = 'status-msg';
-
+      showStatus('wizardMsg', 'Capture en cours...', '');
       fetch('/capture_profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: wizardName, step: step, total: TOTAL })
+        body: JSON.stringify({ name: wizardName, step: currentStep + 1, total: TOTAL })
       })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (!data.success) {
-          msg.textContent = data.error || 'Erreur — réessai dans 2s';
-          msg.className = 'status-msg error';
+          showStatus('wizardMsg', data.error || 'Erreur — réessai dans 2s', 'error');
           setTimeout(startCountdown, 2000);
           return;
         }
         if (data.done) {
           renderDots(TOTAL);
-          msg.textContent = '✓ ' + wizardName + ' enregistré(e) avec ' + TOTAL + ' profils !';
-          msg.className = 'status-msg success';
+          showStatus('wizardMsg', '✓ ' + wizardName + ' enregistré(e) !', 'success');
           document.getElementById('nameInput').value = '';
           loadFaces();
           setTimeout(cancelWizard, 2500);
@@ -189,8 +264,7 @@
         }
       })
       .catch(function() {
-        msg.textContent = 'Erreur réseau — réessai dans 2s';
-        msg.className = 'status-msg error';
+        showStatus('wizardMsg', 'Erreur réseau — réessai dans 2s', 'error');
         setTimeout(startCountdown, 2000);
       });
     }
@@ -199,7 +273,6 @@
       clearInterval(countdownTimer);
       document.getElementById('wizardStep').classList.add('hidden');
       document.getElementById('formStep').classList.remove('hidden');
-      document.getElementById('wizardMsg').textContent = '';
     }
 
     // ── Face list ──
@@ -208,22 +281,25 @@
       .then(function(r) { return r.json(); })
       .then(function(faces) {
         var list = document.getElementById('faceList');
-        var badge = document.getElementById('faceCount');
-        badge.textContent = faces.length + ' personne' + (faces.length > 1 ? 's' : '');
+        var count = document.getElementById('faceCount');
+        count.textContent = faces.length;
         list.innerHTML = '';
         if (faces.length === 0) {
-          list.innerHTML = '<li class="empty">Aucune personne enregistrée</li>';
+          list.innerHTML = '<li class="text-gray-600 text-xs text-center italic py-4">Aucune personne enregistrée</li>';
           return;
         }
         faces.forEach(function(item) {
           var li = document.createElement('li');
+          li.className = 'flex items-center gap-3 bg-[#0d1117] border border-[#21262d] rounded-xl px-3 py-2.5';
           li.innerHTML =
-            '<span class="avatar">' + item.name.charAt(0).toUpperCase() + '</span>' +
-            '<span class="face-info">' +
-              '<span class="face-name">' + item.name + '</span>' +
-              '<span class="face-profiles">' + item.profiles + ' profil' + (item.profiles > 1 ? 's' : '') + '</span>' +
-            '</span>' +
-            '<button class="del-btn" onclick="deleteFace(\'' + item.name + '\')">✕</button>';
+            '<div class="w-8 h-8 rounded-full bg-blue-700 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">' +
+              item.name.charAt(0).toUpperCase() +
+            '</div>' +
+            '<div class="flex-1 min-w-0">' +
+              '<p class="text-sm text-gray-200 truncate">' + item.name + '</p>' +
+              '<p class="text-[10px] text-gray-600">' + item.profiles + ' profil' + (item.profiles > 1 ? 's' : '') + '</p>' +
+            '</div>' +
+            '<button onclick="deleteFace(\'' + item.name + '\')" class="text-gray-600 hover:text-red-400 text-xs px-1.5 py-1 rounded transition-colors">✕</button>';
           list.appendChild(li);
         });
       });
@@ -244,7 +320,6 @@
 
     function applyThreshold() {
       var value = parseFloat(slider.value);
-      var msg = document.getElementById('thresholdMsg');
       fetch('/threshold', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -252,13 +327,8 @@
       })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        if (data.success) {
-          msg.textContent = '✓ Seuil : ' + data.threshold.toFixed(2);
-          msg.className = 'status-msg success';
-        } else {
-          msg.textContent = data.error || 'Erreur.';
-          msg.className = 'status-msg error';
-        }
+        if (data.success) showStatus('thresholdMsg', '✓ Seuil appliqué : ' + data.threshold.toFixed(2), 'success');
+        else showStatus('thresholdMsg', data.error || 'Erreur', 'error');
       });
     }
 
@@ -269,24 +339,41 @@
       document.getElementById('thresholdVal').textContent = data.threshold.toFixed(2);
     });
 
-    document.getElementById('nameInput').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') startWizard();
-    });
-
-    loadFaces();
-
     // ── Stats polling ──
     function refreshStats() {
       fetch('/stats')
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        document.getElementById('statTotal').textContent      = data.total;
         document.getElementById('statIdentified').textContent = data.identified;
         document.getElementById('statUnknown').textContent    = data.unknown;
-        document.getElementById('statTotal').textContent      = data.total;
+        document.getElementById('badgeIdentified').textContent = '✓ ' + data.identified + ' identifié(s)';
+        document.getElementById('badgeUnknown').textContent    = '? ' + data.unknown + ' inconnu(s)';
+        document.getElementById('badgeTotal').textContent      = '⊙ ' + data.total + ' total';
       });
     }
     setInterval(refreshStats, 1000);
     refreshStats();
+
+    // ── Status helpers ──
+    function showStatus(id, msg, type) {
+      var el = document.getElementById(id);
+      el.textContent = msg;
+      el.className = 'mt-3 text-xs rounded-lg min-h-[20px]';
+      if (type === 'success') el.className += ' bg-green-900/20 text-green-400 border border-green-900/50 p-2';
+      else if (type === 'error') el.className += ' bg-red-900/20 text-red-400 border border-red-900/50 p-2';
+    }
+    function clearStatus(id) {
+      var el = document.getElementById(id);
+      el.textContent = '';
+      el.className = 'mt-3 text-xs rounded-lg min-h-[20px]';
+    }
+
+    document.getElementById('nameInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') startWizard();
+    });
+
+    loadFaces();
   </script>
 </body>
 </html>
