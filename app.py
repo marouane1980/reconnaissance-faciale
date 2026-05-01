@@ -1,14 +1,16 @@
 import os
+import re
 import json
 import time
 import shutil
 import threading
 import functools
 import cv2
-from flask import Flask, render_template, Response, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, Response, request, jsonify, session, redirect, url_for, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from face_recognizer import FaceRecognizer
 import analyzer
+import tracker
 
 app = Flask(__name__)
 os.makedirs("known_faces", exist_ok=True)
@@ -84,6 +86,7 @@ def _capture_loop():
             with _lock:
                 _results = results
             analyzer.submit(frame, results)
+            tracker.update(results, frame, analyzer.get_results())
 
 threading.Thread(target=_capture_loop, daemon=True).start()
 
@@ -287,6 +290,40 @@ def analyze():
         'available': analyzer.is_available(),
         'results': analyzer.get_results()
     })
+
+
+@app.route('/history')
+@login_required
+def history():
+    return jsonify(tracker.get_log())
+
+
+@app.route('/history/stats')
+@login_required
+def history_stats():
+    return jsonify(tracker.get_stats())
+
+
+@app.route('/history/clear', methods=['POST'])
+@login_required
+def history_clear():
+    tracker.clear()
+    return jsonify({'success': True})
+
+
+@app.route('/face_photo/<slug>')
+@login_required
+def face_photo(slug):
+    slug = re.sub(r'[^a-z0-9_]', '', slug.lower())
+    folder = os.path.join('known_faces', slug)
+    if os.path.isdir(folder):
+        for f in sorted(os.listdir(folder)):
+            if f.lower().endswith(('.jpg', '.jpeg', '.png')):
+                return send_file(os.path.join(folder, f), mimetype='image/jpeg')
+    single = os.path.join('known_faces', slug + '.jpg')
+    if os.path.exists(single):
+        return send_file(single, mimetype='image/jpeg')
+    return '', 404
 
 
 if __name__ == '__main__':

@@ -11,7 +11,7 @@
   <style>
     * { box-sizing: border-box; }
     body { font-family: 'Inter', system-ui, sans-serif; }
-    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #2d2f45; border-radius: 4px; }
 
@@ -41,7 +41,6 @@
     }
 
     .countdown-fill { transition: width 3s linear; }
-
     .dot { width:8px; height:8px; border-radius:50%; background:#1e2035; border:1.5px solid #2d3055; display:inline-block; transition:all .3s; }
     .dot.active { background:#6366f1; border-color:#6366f1; transform:scale(1.3); }
     .dot.done   { background:#22c55e; border-color:#22c55e; }
@@ -50,6 +49,15 @@
     .panel.active { display: flex; flex-direction: column; }
 
     input[type=range] { accent-color: #6366f1; }
+
+    /* History filter buttons */
+    .hf-btn { background:#1e2035; color:#64748b; border:1px solid transparent; cursor:pointer; }
+    .hf-btn.active { background:rgba(99,102,241,.2); color:#818cf8; border-color:rgba(99,102,241,.3); }
+    .hf-btn:not(.active):hover { background:#2a2b3d; color:#94a3b8; }
+
+    /* History table */
+    #histTbody tr { border-bottom: 1px solid #1e2035; transition: background .1s; }
+    #histTbody tr:hover { background: rgba(255,255,255,.02); }
   </style>
 </head>
 <body class="bg-[#0c0d15] text-slate-300 h-screen flex overflow-hidden">
@@ -71,7 +79,7 @@
     </div>
 
     <!-- Nav -->
-    <nav class="flex-1 px-3 py-4 flex flex-col gap-1">
+    <nav class="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
       <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest px-2 mb-2">Vue d'ensemble</p>
 
       <button onclick="setNav('dashboard')" id="nav-dashboard" class="nav-item active w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
@@ -83,6 +91,12 @@
         <i data-lucide="brain" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
         <span class="nav-label text-sm font-medium text-slate-400">Analyse IA</span>
         <span id="analyseCountBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
+      </button>
+
+      <button onclick="setNav('history')" id="nav-history" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
+        <i data-lucide="table-2" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
+        <span class="nav-label text-sm font-medium text-slate-400">Historique</span>
+        <span id="histNavBadge" class="ml-auto bg-green-950/60 text-green-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
       </button>
 
       <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest px-2 mb-2 mt-4">Gestion</p>
@@ -151,53 +165,101 @@
     <!-- Content -->
     <div class="flex-1 flex overflow-hidden">
 
-      <!-- Center content -->
-      <main class="flex-1 flex flex-col p-5 gap-4 overflow-hidden min-w-0">
+      <!-- ── Center ── -->
+      <main class="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        <!-- Stat cards -->
-        <div class="grid grid-cols-3 gap-4 flex-shrink-0">
+        <!-- ── Default view: stats + video ── -->
+        <div id="main-default" class="flex-1 flex flex-col p-5 gap-4 overflow-hidden">
 
-          <div class="stat-card gradient-border rounded-2xl p-4">
-            <div class="flex items-center justify-between mb-3">
-              <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total détectés</span>
-              <div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                <i data-lucide="scan" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <!-- Stat cards -->
+          <div class="grid grid-cols-3 gap-4 flex-shrink-0">
+            <div class="stat-card gradient-border rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total détectés</span>
+                <div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                  <i data-lucide="scan" class="w-3.5 h-3.5 text-indigo-400"></i>
+                </div>
               </div>
+              <p class="text-3xl font-bold text-white" id="statTotal">0</p>
+              <p class="text-[11px] text-slate-600 mt-1">visages dans le cadre</p>
             </div>
-            <p class="text-3xl font-bold text-white" id="statTotal">0</p>
-            <p class="text-[11px] text-slate-600 mt-1">visages dans le cadre</p>
+            <div class="stat-card gradient-border rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Identifiés</span>
+                <div class="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <i data-lucide="user-check" class="w-3.5 h-3.5 text-green-400"></i>
+                </div>
+              </div>
+              <p class="text-3xl font-bold text-green-400" id="statIdentified">0</p>
+              <p class="text-[11px] text-slate-600 mt-1">personnes reconnues</p>
+            </div>
+            <div class="stat-card gradient-border rounded-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Inconnus</span>
+                <div class="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center">
+                  <i data-lucide="user-x" class="w-3.5 h-3.5 text-red-400"></i>
+                </div>
+              </div>
+              <p class="text-3xl font-bold text-red-400" id="statUnknown">0</p>
+              <p class="text-[11px] text-slate-600 mt-1">non enregistrés</p>
+            </div>
           </div>
 
-          <div class="stat-card gradient-border rounded-2xl p-4">
-            <div class="flex items-center justify-between mb-3">
-              <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Identifiés</span>
-              <div class="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <i data-lucide="user-check" class="w-3.5 h-3.5 text-green-400"></i>
-              </div>
+          <!-- Video -->
+          <div class="flex-1 gradient-border rounded-2xl overflow-hidden flex items-center justify-center bg-black min-h-0 relative">
+            <img src="/video_feed" alt="Flux vidéo" class="w-full h-full object-contain block">
+            <div class="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-2.5 py-1">
+              <div class="w-1.5 h-1.5 rounded-full bg-red-500 live-dot"></div>
+              <span class="text-[10px] font-semibold text-white/80">LIVE</span>
             </div>
-            <p class="text-3xl font-bold text-green-400" id="statIdentified">0</p>
-            <p class="text-[11px] text-slate-600 mt-1">personnes reconnues</p>
-          </div>
-
-          <div class="stat-card gradient-border rounded-2xl p-4">
-            <div class="flex items-center justify-between mb-3">
-              <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Inconnus</span>
-              <div class="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center">
-                <i data-lucide="user-x" class="w-3.5 h-3.5 text-red-400"></i>
-              </div>
-            </div>
-            <p class="text-3xl font-bold text-red-400" id="statUnknown">0</p>
-            <p class="text-[11px] text-slate-600 mt-1">non enregistrés</p>
           </div>
 
         </div>
 
-        <!-- Video -->
-        <div class="flex-1 gradient-border rounded-2xl overflow-hidden flex items-center justify-center bg-black min-h-0 relative">
-          <img src="/video_feed" alt="Flux vidéo" class="w-full h-full object-contain block">
-          <div class="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-2.5 py-1">
-            <div class="w-1.5 h-1.5 rounded-full bg-red-500 live-dot"></div>
-            <span class="text-[10px] font-semibold text-white/80">LIVE</span>
+        <!-- ── History view: table ── -->
+        <div id="main-history" class="hidden flex-1 flex flex-col overflow-hidden">
+
+          <!-- Top bar -->
+          <div class="px-6 py-4 border-b border-[#1e2035] flex items-center gap-3 flex-shrink-0 bg-[#0f1020]">
+            <i data-lucide="table-2" class="w-4 h-4 text-indigo-400 flex-shrink-0"></i>
+            <h2 class="text-sm font-semibold text-white">Journal des apparitions</h2>
+            <span class="bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full" id="historyCount">0</span>
+            <div class="ml-auto flex items-center gap-2">
+              <button onclick="loadHistory()" class="flex items-center gap-1.5 bg-[#1e2035] hover:bg-[#2a2b3d] text-slate-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Actualiser
+              </button>
+              <button onclick="exportCSV()" class="flex items-center gap-1.5 bg-green-600/20 hover:bg-green-600/30 border border-green-600/40 text-green-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="download" class="w-3 h-3"></i> Export CSV
+              </button>
+              <button onclick="clearHistory()" class="flex items-center gap-1.5 bg-red-600/10 hover:bg-red-600/20 border border-red-600/30 text-red-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="trash-2" class="w-3 h-3"></i> Effacer
+              </button>
+            </div>
+          </div>
+
+          <!-- Scrollable table -->
+          <div class="flex-1 overflow-auto">
+            <table class="w-full text-xs border-collapse" style="min-width:960px">
+              <thead class="sticky top-0 z-10 bg-[#0f1020] border-b border-[#1e2035]">
+                <tr>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-14">Photo</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Nom</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Statut</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Date</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Entrée</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sortie</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Durée</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Âge</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sexe</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Émotion</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Distance</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Caméra</th>
+                </tr>
+              </thead>
+              <tbody id="histTbody">
+                <tr><td colspan="12" class="text-center text-slate-600 italic py-14">Aucune donnée — les apparitions s'enregistrent automatiquement</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -253,11 +315,85 @@
           </div>
         </div>
 
+        <!-- Panel: Analyse IA -->
+        <div id="panel-analyse" class="panel flex-1 overflow-y-auto p-5 gap-3">
+          <div class="flex items-center justify-between flex-shrink-0">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Analyse inconnus</p>
+            <span id="analyseCount" class="bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+          </div>
+          <div id="analyseCards" class="flex flex-col gap-3">
+            <div class="text-slate-600 text-xs text-center italic py-6" id="analyseEmpty">En attente d'inconnus...</div>
+          </div>
+        </div>
+
+        <!-- Panel: Historique (filtres & stats) -->
+        <div id="panel-history" class="panel flex-1 overflow-y-auto p-5 gap-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filtres &amp; Stats</p>
+
+          <!-- Stats -->
+          <div class="gradient-border rounded-xl p-4 flex flex-col gap-2.5">
+            <p class="text-xs font-semibold text-slate-400 mb-1">Résumé de session</p>
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-500">Total entrées</span>
+              <span class="font-bold text-white" id="hst-total">0</span>
+            </div>
+            <div class="h-px bg-[#1e2035]"></div>
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-500">Présents maintenant</span>
+              <span class="font-bold text-green-400" id="hst-present">0</span>
+            </div>
+            <div class="h-px bg-[#1e2035]"></div>
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-500">Identifiés (session)</span>
+              <span class="font-bold text-indigo-400" id="hst-identified">0</span>
+            </div>
+            <div class="h-px bg-[#1e2035]"></div>
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-500">Inconnus (session)</span>
+              <span class="font-bold text-red-400" id="hst-unknown">0</span>
+            </div>
+          </div>
+
+          <!-- Search & filters -->
+          <div class="gradient-border rounded-xl p-4 flex flex-col gap-3">
+            <p class="text-xs font-semibold text-slate-400">Rechercher</p>
+            <div class="relative">
+              <i data-lucide="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600"></i>
+              <input type="text" id="histSearch" placeholder="Nom de la personne..."
+                class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg pl-8 pr-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600"
+                oninput="onHistSearch(this.value)">
+            </div>
+
+            <p class="text-[11px] text-slate-500 font-medium mt-1">Filtrer par statut</p>
+            <div class="flex gap-1">
+              <button onclick="setHistFilter('all')" id="hf-all" class="hf-btn active flex-1 text-[11px] py-1.5 rounded-lg font-medium transition-colors">Tous</button>
+              <button onclick="setHistFilter('present')" id="hf-present" class="hf-btn flex-1 text-[11px] py-1.5 rounded-lg font-medium transition-colors">Présents</button>
+              <button onclick="setHistFilter('gone')" id="hf-gone" class="hf-btn flex-1 text-[11px] py-1.5 rounded-lg font-medium transition-colors">Partis</button>
+            </div>
+
+            <p class="text-[11px] text-slate-500 font-medium mt-1">Filtrer par identité</p>
+            <div class="flex gap-1">
+              <button onclick="setIdentFilter('all')" id="hfi-all" class="hf-btn active flex-1 text-[11px] py-1.5 rounded-lg font-medium transition-colors">Tous</button>
+              <button onclick="setIdentFilter('known')" id="hfi-known" class="hf-btn flex-1 text-[11px] py-1.5 rounded-lg font-medium transition-colors">Connus</button>
+              <button onclick="setIdentFilter('unknown')" id="hfi-unknown" class="hf-btn flex-1 text-[11px] py-1.5 rounded-lg font-medium transition-colors">Inconnus</button>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex flex-col gap-2">
+            <button onclick="exportCSV()" class="w-full flex items-center justify-center gap-2 bg-green-600/20 hover:bg-green-600/30 border border-green-600/40 text-green-400 text-xs font-semibold rounded-lg py-2.5 transition-colors">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i> Exporter CSV
+            </button>
+            <button onclick="clearHistory()" class="w-full flex items-center justify-center gap-2 bg-red-600/10 hover:bg-red-600/20 border border-red-600/30 text-red-400 text-xs font-semibold rounded-lg py-2.5 transition-colors">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Effacer l'historique
+            </button>
+          </div>
+        </div>
+
         <!-- Panel: Ajouter -->
         <div id="panel-add" class="panel flex-1 overflow-y-auto p-5 gap-4">
           <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Nouveau profil</p>
 
-          <!-- Form -->
           <div id="formStep">
             <div class="gradient-border rounded-xl p-4 flex flex-col gap-3">
               <label class="text-xs text-slate-500 font-medium">Nom complet</label>
@@ -272,27 +408,22 @@
             <div id="statusMsg" class="mt-2 text-xs rounded-lg min-h-[16px]"></div>
           </div>
 
-          <!-- Wizard -->
           <div id="wizardStep" class="hidden flex flex-col gap-3">
             <div class="text-center">
               <p class="text-sm font-semibold text-indigo-300" id="wizardName"></p>
               <p class="text-[11px] text-slate-500 mt-0.5">Capture guidée — <span id="wizardStepLabel">étape 1/5</span></p>
             </div>
-
             <div class="flex justify-center gap-2 py-1" id="progressDots"></div>
-
             <div class="gradient-border rounded-xl p-4 text-center">
               <div class="text-4xl mb-2" id="profileIcon"></div>
               <div class="text-xs text-slate-400 leading-relaxed" id="profileLabel"></div>
             </div>
-
             <div class="gradient-border-accent rounded-xl p-4 text-center">
               <div class="text-4xl font-bold text-white mb-2" id="countdownNum">3</div>
               <div class="h-1 bg-[#1e2035] rounded-full overflow-hidden">
                 <div class="countdown-fill h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full w-full" id="countdownFill"></div>
               </div>
             </div>
-
             <div id="wizardMsg" class="text-xs rounded-lg min-h-[16px]"></div>
             <button onclick="cancelWizard()"
               class="border border-[#2a2b3d] hover:border-red-800 text-slate-500 hover:text-red-400 rounded-lg py-2 text-xs transition-colors">
@@ -310,17 +441,6 @@
           <ul id="faceList" class="flex flex-col gap-2">
             <li class="text-slate-600 text-xs text-center italic py-6">Chargement...</li>
           </ul>
-        </div>
-
-        <!-- Panel: Analyse IA -->
-        <div id="panel-analyse" class="panel flex-1 overflow-y-auto p-5 gap-3">
-          <div class="flex items-center justify-between flex-shrink-0">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Analyse inconnus</p>
-            <span id="analyseCount" class="bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
-          </div>
-          <div id="analyseCards" class="flex flex-col gap-3">
-            <div class="text-slate-600 text-xs text-center italic py-6" id="analyseEmpty">En attente d'inconnus...</div>
-          </div>
         </div>
 
         <!-- Panel: Paramètres -->
@@ -359,10 +479,7 @@
               <p class="text-xs font-semibold text-slate-400">Utilisateurs</p>
               <span class="bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full" id="userCount">0</span>
             </div>
-
             <ul id="userList" class="flex flex-col gap-2"></ul>
-
-            <!-- Ajouter un utilisateur -->
             <div class="border-t border-[#1e2035] pt-3 flex flex-col gap-2">
               <p class="text-[11px] text-slate-500 font-medium">Nouvel utilisateur</p>
               <input type="text" id="newUsername" placeholder="Nom d'utilisateur"
@@ -381,7 +498,6 @@
               <div id="userMsg" class="text-xs rounded-lg min-h-[14px]"></div>
             </div>
           </div>
-
         </div>
 
       </aside>
@@ -392,10 +508,10 @@
     lucide.createIcons();
 
     // ── Navigation ──
-    var NAVS = ['dashboard','analyse','add','people','settings'];
+    var NAVS = ['dashboard','analyse','history','add','people','settings'];
     function setNav(name) {
       NAVS.forEach(function(n) {
-        var btn = document.getElementById('nav-' + n);
+        var btn   = document.getElementById('nav-' + n);
         var panel = document.getElementById('panel-' + n);
         if (n === name) {
           btn.classList.add('active');
@@ -405,8 +521,14 @@
           panel.classList.remove('active');
         }
       });
-      if (name === 'people') loadFaces();
+      // Toggle main content sections
+      var isHist = (name === 'history');
+      document.getElementById('main-default').style.display = isHist ? 'none' : '';
+      document.getElementById('main-history').style.display = isHist ? 'flex' : 'none';
+
+      if (name === 'people')   loadFaces();
       if (name === 'dashboard') loadFaces();
+      if (name === 'history')  loadHistory();
     }
 
     // ── Wizard ──
@@ -508,10 +630,10 @@
           li.innerHTML =
             '<div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">' + initials + '</div>' +
             '<div class="flex-1 min-w-0">' +
-              '<p class="text-sm font-medium text-slate-200 truncate">' + item.name + '</p>' +
+              '<p class="text-sm font-medium text-slate-200 truncate">' + escHtml(item.name) + '</p>' +
               '<p class="text-[10px] text-slate-600">' + item.profiles + ' profil' + (item.profiles > 1 ? 's' : '') + '</p>' +
             '</div>' +
-            '<button onclick="deleteFace(\'' + item.name + '\')" class="text-slate-600 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-950/30"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>';
+            '<button onclick="deleteFace(\'' + escHtml(item.name) + '\')" class="text-slate-600 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-950/30"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>';
           list.appendChild(li);
         });
       });
@@ -561,6 +683,245 @@
     setInterval(refreshStats, 1000);
     refreshStats();
 
+    // ══════════════════════════════════════════
+    //  ANALYSE IA
+    // ══════════════════════════════════════════
+    var EMOTION_ICON = { 'Heureux(se)': '😊', 'Triste': '😢', 'En colère': '😠', 'Peur': '😨', 'Surpris(e)': '😮', 'Dégoût': '🤢', 'Neutre': '😐', 'Mépris': '😒' };
+    var SIZE_COLOR   = { 'Très proche / visage large': 'text-violet-400', 'Proche': 'text-indigo-400', 'Distance moyenne': 'text-slate-400', 'Éloigné': 'text-slate-500' };
+
+    function refreshAnalyse() {
+      fetch('/analyze').then(function(r){return r.json();}).then(function(d){
+        var container = document.getElementById('analyseCards');
+        var empty     = document.getElementById('analyseEmpty');
+        var countEl   = document.getElementById('analyseCount');
+        var badgeEl   = document.getElementById('analyseCountBadge');
+
+        if (!d.available) {
+          empty.textContent = 'DeepFace non installé — pip install deepface';
+          empty.style.display = 'block';
+          container.innerHTML = '';
+          container.appendChild(empty);
+          return;
+        }
+
+        var results = d.results || [];
+        var n = results.length;
+        countEl.textContent = n;
+        if (n > 0) { badgeEl.textContent = n; badgeEl.classList.remove('hidden'); }
+        else        { badgeEl.classList.add('hidden'); }
+
+        if (!n) {
+          container.innerHTML = '';
+          empty.textContent = 'Aucun inconnu détecté dans le cadre';
+          empty.style.display = 'block';
+          container.appendChild(empty);
+          return;
+        }
+
+        empty.style.display = 'none';
+        var html = '';
+        results.forEach(function(r, idx) {
+          var hasFace   = r.face && !r.error;
+          var emotionIcon = EMOTION_ICON[r.emotion] || '😐';
+          var sizeColor   = SIZE_COLOR[r.face_size] || 'text-slate-400';
+          var genderIcon  = r.gender === 'Homme' ? '♂' : r.gender === 'Femme' ? '♀' : '?';
+          var genderColor = r.gender === 'Homme' ? 'text-blue-400' : 'text-pink-400';
+
+          html += '<div class="gradient-border rounded-xl overflow-hidden">';
+          if (hasFace) html += '<img src="' + r.face + '" alt="inconnu ' + (idx+1) + '" class="w-full object-cover" style="max-height:110px">';
+          html += '<div class="p-3 flex flex-col gap-2">';
+          html += '<p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Inconnu ' + (idx + 1) + '</p>';
+          if (r.error) {
+            html += '<p class="text-[11px] text-red-400">Analyse échouée</p>';
+          } else {
+            html += '<div class="grid grid-cols-2 gap-1.5 text-[11px]">';
+            html += '<div class="bg-[#0c0d15] border border-[#1e2035] rounded-lg p-2 flex flex-col gap-0.5"><span class="text-slate-600">Âge estimé</span><span class="font-bold text-white">~' + (r.age||'?') + ' ans</span><span class="text-indigo-400">' + (r.age_range||'') + '</span></div>';
+            html += '<div class="bg-[#0c0d15] border border-[#1e2035] rounded-lg p-2 flex flex-col gap-0.5"><span class="text-slate-600">Sexe</span><span class="font-bold ' + genderColor + '">' + genderIcon + ' ' + (r.gender||'?') + '</span>' + (r.gender_conf !== null && r.gender_conf !== undefined ? '<span class="text-slate-500">' + r.gender_conf + ' %</span>' : '') + '</div>';
+            html += '<div class="bg-[#0c0d15] border border-[#1e2035] rounded-lg p-2 flex flex-col gap-0.5"><span class="text-slate-600">Émotion</span><span class="font-bold text-yellow-400">' + emotionIcon + ' ' + (r.emotion||'?') + '</span>' + (r.emotion_conf !== null && r.emotion_conf !== undefined ? '<span class="text-slate-500">' + r.emotion_conf + ' %</span>' : '') + '</div>';
+            html += '<div class="bg-[#0c0d15] border border-[#1e2035] rounded-lg p-2 flex flex-col gap-0.5"><span class="text-slate-600">Distance</span><span class="font-bold ' + sizeColor + ' leading-tight">' + (r.face_size||'?') + '</span></div>';
+            html += '</div>';
+          }
+          html += '</div></div>';
+        });
+        container.innerHTML = html;
+      }).catch(function(){});
+    }
+    setInterval(refreshAnalyse, 2500);
+    refreshAnalyse();
+
+    // ══════════════════════════════════════════
+    //  HISTORIQUE
+    // ══════════════════════════════════════════
+    var _historyData   = [];
+    var _histFilter    = { q: '', status: 'all', ident: 'all' };
+    var _histAutoRefr  = null;
+
+    function loadHistory() {
+      fetch('/history').then(function(r){ return r.json(); }).then(function(d){
+        _historyData = d;
+        renderHistory();
+      }).catch(function(){});
+      fetch('/history/stats').then(function(r){ return r.json(); }).then(function(s){
+        document.getElementById('hst-total').textContent      = s.total;
+        document.getElementById('hst-present').textContent    = s.present;
+        document.getElementById('hst-identified').textContent = s.identified;
+        document.getElementById('hst-unknown').textContent    = s.unknown;
+        var badge = document.getElementById('histNavBadge');
+        if (s.present > 0) { badge.textContent = s.present; badge.classList.remove('hidden'); }
+        else { badge.classList.add('hidden'); }
+      }).catch(function(){});
+    }
+
+    function renderHistory() {
+      var q     = _histFilter.q.toLowerCase();
+      var data  = _historyData.filter(function(r) {
+        var mQ     = !q || r.name.toLowerCase().indexOf(q) >= 0;
+        var mS     = _histFilter.status === 'all' || r.status === _histFilter.status;
+        var mI     = _histFilter.ident  === 'all'
+                  || (_histFilter.ident === 'known'   && r.name !== 'Inconnu')
+                  || (_histFilter.ident === 'unknown' && r.name === 'Inconnu');
+        return mQ && mS && mI;
+      });
+
+      document.getElementById('historyCount').textContent = data.length;
+      var tbody = document.getElementById('histTbody');
+
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-slate-600 italic py-12">Aucune entrée ne correspond aux filtres</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = '';
+      var EMOICONS = {'Heureux(se)':'😊','Triste':'😢','En colère':'😠','Peur':'😨','Surpris(e)':'😮','Dégoût':'🤢','Neutre':'😐','Mépris':'😒'};
+
+      data.forEach(function(r) {
+        var tr = document.createElement('tr');
+
+        // Photo
+        var slug = r.name.toLowerCase().replace(/ /g, '_');
+        var photoCell;
+        if (r.photo) {
+          photoCell = '<img src="' + r.photo + '" class="w-9 h-9 rounded-lg object-cover" style="min-width:36px">';
+        } else if (r.name !== 'Inconnu') {
+          var initials = r.name.split(' ').map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase();
+          photoCell = '<img src="/face_photo/' + encodeURIComponent(slug) + '" class="w-9 h-9 rounded-lg object-cover"'
+            + ' onerror="this.outerHTML=\'<div class=\\\"w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold\\\">' + initials + '</div>\'">';
+        } else {
+          photoCell = '<div class="w-9 h-9 rounded-lg bg-[#1e2035] flex items-center justify-center text-slate-600 text-base font-bold">?</div>';
+        }
+
+        // Status badge
+        var statusBadge = r.status === 'present'
+          ? '<span class="inline-flex items-center gap-1 bg-green-950/40 text-green-400 border border-green-900/40 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-green-400 live-dot inline-block"></span>Présent</span>'
+          : '<span class="inline-flex items-center gap-1 bg-[#1e2035] text-slate-500 border border-[#2a2b3d] text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">Parti</span>';
+
+        var date    = r.first_seen ? r.first_seen.split(' ')[0] : '—';
+        var timeIn  = r.first_seen ? r.first_seen.split(' ')[1] : '—';
+        var timeOut = (r.status === 'present') ? '<span class="text-slate-700">—</span>' : (r.last_seen ? r.last_seen.split(' ')[1] : '—');
+
+        var ageCell = r.age
+          ? '<span class="text-slate-200">' + r.age + ' ans</span><br><span class="text-[10px] text-indigo-400">' + escHtml(r.age_range||'') + '</span>'
+          : '<span class="text-slate-700">—</span>';
+
+        var genderCell = r.gender === 'Homme'
+          ? '<span class="text-blue-400 whitespace-nowrap">♂ Homme</span>'
+          : r.gender === 'Femme'
+          ? '<span class="text-pink-400 whitespace-nowrap">♀ Femme</span>'
+          : '<span class="text-slate-700">—</span>';
+
+        var emotionCell = r.emotion
+          ? escHtml((EMOICONS[r.emotion]||'') + ' ' + r.emotion)
+          : '<span class="text-slate-700">—</span>';
+
+        tr.innerHTML =
+          '<td class="py-2.5 px-3">' + photoCell + '</td>' +
+          '<td class="py-2.5 px-3 font-medium text-slate-200 whitespace-nowrap">' + escHtml(r.name) + '</td>' +
+          '<td class="py-2.5 px-3">'                  + statusBadge + '</td>' +
+          '<td class="py-2.5 px-3 text-slate-500 whitespace-nowrap font-mono text-[11px]">' + date + '</td>' +
+          '<td class="py-2.5 px-3 text-slate-400 whitespace-nowrap font-mono text-[11px]">' + timeIn + '</td>' +
+          '<td class="py-2.5 px-3 text-slate-400 whitespace-nowrap font-mono text-[11px]">' + timeOut + '</td>' +
+          '<td class="py-2.5 px-3 text-slate-400 whitespace-nowrap">'  + fmtDuration(r.duration_s) + '</td>' +
+          '<td class="py-2.5 px-3">'                  + ageCell + '</td>' +
+          '<td class="py-2.5 px-3">'                  + genderCell + '</td>' +
+          '<td class="py-2.5 px-3 whitespace-nowrap">' + emotionCell + '</td>' +
+          '<td class="py-2.5 px-3 text-slate-500 text-[10px] whitespace-nowrap">' + escHtml(r.face_size||'—') + '</td>' +
+          '<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">'  + escHtml(r.camera||'—') + '</td>';
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function onHistSearch(val) {
+      _histFilter.q = val;
+      renderHistory();
+    }
+
+    function setHistFilter(status) {
+      _histFilter.status = status;
+      ['all','present','gone'].forEach(function(s) {
+        document.getElementById('hf-' + s).classList.toggle('active', s === status);
+      });
+      renderHistory();
+    }
+
+    function setIdentFilter(ident) {
+      _histFilter.ident = ident;
+      ['all','known','unknown'].forEach(function(s) {
+        document.getElementById('hfi-' + s).classList.toggle('active', s === ident);
+      });
+      renderHistory();
+    }
+
+    function fmtDuration(s) {
+      if (s === null || s === undefined || s === '') return '—';
+      s = parseInt(s, 10);
+      if (s < 60)  return s + 's';
+      var m = Math.floor(s / 60), sec = s % 60;
+      if (m < 60)  return m + 'm ' + (sec > 0 ? sec + 's' : '');
+      var h = Math.floor(m / 60); m = m % 60;
+      return h + 'h ' + (m > 0 ? m + 'm' : '');
+    }
+
+    function exportCSV() {
+      var rows = [['ID','Nom','Statut','Date','Heure entrée','Heure sortie','Durée (s)','Âge','Tranche d\'âge','Sexe','Émotion','Distance caméra','Source']];
+      _historyData.forEach(function(r) {
+        rows.push([
+          r.id, r.name,
+          r.status === 'present' ? 'Présent' : 'Parti',
+          r.first_seen ? r.first_seen.split(' ')[0] : '',
+          r.first_seen ? r.first_seen.split(' ')[1] : '',
+          r.last_seen  ? r.last_seen.split(' ')[1]  : '',
+          r.duration_s || 0,
+          r.age || '', r.age_range || '',
+          r.gender || '', r.emotion || '',
+          r.face_size || '', r.camera || ''
+        ]);
+      });
+      var csv = rows.map(function(r) {
+        return r.map(function(v) { return '"' + String(v).replace(/"/g,'""') + '"'; }).join(',');
+      }).join('\n');
+      var blob = new Blob(['﻿' + csv], {type:'text/csv;charset=utf-8;'});
+      var url  = URL.createObjectURL(blob);
+      var a    = document.createElement('a');
+      a.href   = url;
+      a.download = 'historique_faceid_' + new Date().toISOString().slice(0,10) + '.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    }
+
+    function clearHistory() {
+      if (!confirm('Effacer tout l\'historique de session ?')) return;
+      fetch('/history/clear', {method:'POST'})
+        .then(function(){ loadHistory(); });
+    }
+
+    // Auto-refresh history every 5s when panel is active
+    setInterval(function() {
+      if (document.getElementById('panel-history').classList.contains('active')) {
+        loadHistory();
+      }
+    }, 5000);
+
     // ── Helpers ──
     function showMsg(id, msg, type) {
       var el = document.getElementById(id);
@@ -571,6 +932,9 @@
       else el.className += 'text-slate-500';
     }
     function clearMsg(id) { var el=document.getElementById(id); el.textContent=''; el.className='text-xs min-h-[16px]'; }
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
 
     document.getElementById('nameInput').addEventListener('keypress', function(e) {
       if (e.key === 'Enter') startWizard();
@@ -601,10 +965,10 @@
           li.innerHTML =
             '<div class="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">' + u.username.slice(0,2).toUpperCase() + '</div>' +
             '<div class="flex-1 min-w-0">' +
-              '<p class="text-xs font-medium text-slate-200 truncate">' + u.username + '</p>' +
+              '<p class="text-xs font-medium text-slate-200 truncate">' + escHtml(u.username) + '</p>' +
               '<span class="text-[10px] border rounded-full px-1.5 py-px ' + roleColor + '">' + (u.role === 'admin' ? 'Admin' : 'Utilisateur') + '</span>' +
             '</div>' +
-            '<button onclick="deleteUser(\'' + u.username + '\')" class="text-slate-600 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-950/30 flex-shrink-0">' +
+            '<button onclick="deleteUser(\'' + escHtml(u.username) + '\')" class="text-slate-600 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-950/30 flex-shrink-0">' +
               '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>' +
             '</button>';
           list.appendChild(li);
@@ -641,100 +1005,6 @@
     }
 
     loadFaces();
-
-    // ── Analyse IA ──
-    var EMOTION_ICON = { 'Heureux(se)': '😊', 'Triste': '😢', 'En colère': '😠', 'Peur': '😨', 'Surpris(e)': '😮', 'Dégoût': '🤢', 'Neutre': '😐', 'Mépris': '😒' };
-    var SIZE_COLOR   = { 'Très proche / visage large': 'text-violet-400', 'Proche': 'text-indigo-400', 'Distance moyenne': 'text-slate-400', 'Éloigné': 'text-slate-500' };
-
-    function refreshAnalyse() {
-      fetch('/analyze').then(function(r){return r.json();}).then(function(d){
-        var container = document.getElementById('analyseCards');
-        var empty     = document.getElementById('analyseEmpty');
-        var countEl   = document.getElementById('analyseCount');
-        var badgeEl   = document.getElementById('analyseCountBadge');
-
-        if (!d.available) {
-          empty.textContent = 'DeepFace non installé — pip install deepface';
-          empty.style.display = 'block';
-          container.innerHTML = '';
-          container.appendChild(empty);
-          return;
-        }
-
-        var results = d.results || [];
-        var n = results.length;
-        countEl.textContent = n;
-        if (n > 0) {
-          badgeEl.textContent = n;
-          badgeEl.classList.remove('hidden');
-        } else {
-          badgeEl.classList.add('hidden');
-        }
-
-        if (!n) {
-          container.innerHTML = '';
-          empty.textContent = 'Aucun inconnu détecté dans le cadre';
-          empty.style.display = 'block';
-          container.appendChild(empty);
-          return;
-        }
-
-        empty.style.display = 'none';
-        var html = '';
-        results.forEach(function(r, idx) {
-          var hasFace = r.face && !r.error;
-          var emotionIcon = EMOTION_ICON[r.emotion] || '😐';
-          var sizeColor = SIZE_COLOR[r.face_size] || 'text-slate-400';
-          var genderIcon = r.gender === 'Homme' ? '♂' : r.gender === 'Femme' ? '♀' : '?';
-          var genderColor = r.gender === 'Homme' ? 'text-blue-400' : 'text-pink-400';
-
-          html += '<div class="gradient-border rounded-xl overflow-hidden">';
-
-          if (hasFace) {
-            html += '<img src="' + r.face + '" alt="inconnu ' + (idx+1) + '" class="w-full object-cover" style="max-height:110px">';
-          }
-
-          html += '<div class="p-3 flex flex-col gap-2">';
-          html += '<p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Inconnu ' + (idx + 1) + '</p>';
-
-          if (r.error) {
-            html += '<p class="text-[11px] text-red-400">Analyse échouée</p>';
-          } else {
-            html += '<div class="grid grid-cols-2 gap-1.5 text-[11px]">';
-            html += '<div class="bg-[#0c0d15] border border-[#1e2035] rounded-lg p-2 flex flex-col gap-0.5">';
-            html += '<span class="text-slate-600">Âge estimé</span>';
-            html += '<span class="font-bold text-white">~' + (r.age || '?') + ' ans</span>';
-            html += '<span class="text-indigo-400">' + (r.age_range || '') + '</span>';
-            html += '</div>';
-            html += '<div class="bg-[#0c0d15] border border-[#1e2035] rounded-lg p-2 flex flex-col gap-0.5">';
-            html += '<span class="text-slate-600">Sexe</span>';
-            html += '<span class="font-bold ' + genderColor + '">' + genderIcon + ' ' + (r.gender || '?') + '</span>';
-            if (r.gender_conf !== null && r.gender_conf !== undefined) {
-              html += '<span class="text-slate-500">' + r.gender_conf + ' %</span>';
-            }
-            html += '</div>';
-            html += '<div class="bg-[#0c0d15] border border-[#1e2035] rounded-lg p-2 flex flex-col gap-0.5">';
-            html += '<span class="text-slate-600">Émotion</span>';
-            html += '<span class="font-bold text-yellow-400">' + emotionIcon + ' ' + (r.emotion || '?') + '</span>';
-            if (r.emotion_conf !== null && r.emotion_conf !== undefined) {
-              html += '<span class="text-slate-500">' + r.emotion_conf + ' %</span>';
-            }
-            html += '</div>';
-            html += '<div class="bg-[#0c0d15] border border-[#1e2035] rounded-lg p-2 flex flex-col gap-0.5">';
-            html += '<span class="text-slate-600">Distance</span>';
-            html += '<span class="font-bold ' + sizeColor + ' leading-tight">' + (r.face_size || '?') + '</span>';
-            html += '</div>';
-            html += '</div>';
-          }
-
-          html += '</div></div>';
-        });
-        container.innerHTML = html;
-      }).catch(function(){});
-    }
-
-    setInterval(refreshAnalyse, 2500);
-    refreshAnalyse();
   </script>
 </body>
 </html>
