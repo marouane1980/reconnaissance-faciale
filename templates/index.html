@@ -15,8 +15,15 @@
   </header>
 
   <main>
-    <section class="video-wrap">
-      <img id="videoFeed" src="/video_feed" alt="Flux vidéo">
+    <section class="video-section">
+      <div class="stats-bar">
+        <span class="stat identified">&#10003; Identifiés : <strong id="statIdentified">0</strong></span>
+        <span class="stat unknown">&#63; Inconnus : <strong id="statUnknown">0</strong></span>
+        <span class="stat total">Total : <strong id="statTotal">0</strong></span>
+      </div>
+      <div class="video-wrap">
+        <img id="videoFeed" src="/video_feed" alt="Flux vidéo">
+      </div>
     </section>
 
     <aside class="sidebar">
@@ -267,6 +274,19 @@
     });
 
     loadFaces();
+
+    // ── Stats polling ──
+    function refreshStats() {
+      fetch('/stats')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        document.getElementById('statIdentified').textContent = data.identified;
+        document.getElementById('statUnknown').textContent    = data.unknown;
+        document.getElementById('statTotal').textContent      = data.total;
+      });
+    }
+    setInterval(refreshStats, 1000);
+    refreshStats();
   </script>
 </body>
 </html>

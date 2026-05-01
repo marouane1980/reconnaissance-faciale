@@ -39,6 +39,9 @@ threading.Thread(target=_capture_loop, daemon=True).start()
 
 
 def _annotate(frame, results):
+    identified = sum(1 for (_, _, _, _, n) in results if n != "Inconnu")
+    unknown    = sum(1 for (_, _, _, _, n) in results if n == "Inconnu")
+
     for (x, y, w, h, name) in results:
         color = (30, 200, 30) if name != "Inconnu" else (30, 30, 210)
         cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
@@ -47,6 +50,13 @@ def _annotate(frame, results):
         cv2.rectangle(frame, (x, ly - th - 8), (x + tw + 10, ly + 2), color, cv2.FILLED)
         cv2.putText(frame, name, (x + 5, ly - 3),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+
+    # Compteur en haut à gauche
+    label = "Identifies: {}  Inconnus: {}".format(identified, unknown)
+    (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+    cv2.rectangle(frame, (8, 8), (lw + 18, lh + 18), (20, 20, 20), cv2.FILLED)
+    cv2.putText(frame, label, (13, lh + 12),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 2)
     return frame
 
 
@@ -121,6 +131,15 @@ def get_faces():
         elif item.lower().endswith(('.jpg', '.jpeg', '.png')):
             result.append({'name': os.path.splitext(item)[0].replace('_', ' ').title(), 'profiles': 1})
     return jsonify(sorted(result, key=lambda x: x['name']))
+
+
+@app.route('/stats')
+def stats():
+    with _lock:
+        results = list(_results)
+    identified = sum(1 for (_, _, _, _, n) in results if n != "Inconnu")
+    unknown    = sum(1 for (_, _, _, _, n) in results if n == "Inconnu")
+    return jsonify({'identified': identified, 'unknown': unknown, 'total': len(results)})
 
 
 @app.route('/threshold', methods=['GET', 'POST'])

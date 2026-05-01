@@ -36,6 +36,30 @@ header {
 /* ── Layout ── */
 main { display: flex; flex: 1; gap: 20px; padding: 20px; overflow: hidden; }
 
+.video-section { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+.stats-bar {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.stat {
+  flex: 1;
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: .82rem;
+  color: #8b949e;
+  text-align: center;
+}
+.stat strong { font-size: 1.3rem; display: block; margin-top: 2px; }
+.stat.identified { border-color: #2ea04344; }
+.stat.identified strong { color: #3fb950; }
+.stat.unknown    { border-color: #f8514944; }
+.stat.unknown strong    { color: #f85149; }
+.stat.total strong      { color: #58a6ff; }
+
 .video-wrap {
   flex: 1;
   background: #000;
@@ -45,6 +69,7 @@ main { display: flex; flex: 1; gap: 20px; padding: 20px; overflow: hidden; }
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
 }
 .video-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
