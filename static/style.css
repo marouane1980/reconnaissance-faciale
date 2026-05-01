@@ -1,17 +1,5 @@
-/* Styles résiduels non couverts par Tailwind */
+/* Minimal overrides — Tailwind + inline styles handle the rest */
 .countdown-fill { transition: width 3s linear; }
-
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
-
-.dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  background: #21262d;
-  border: 2px solid #30363d;
-  display: inline-block;
-  transition: all .3s;
-}
-.dot.active { background: #3b82f6; border-color: #3b82f6; transform: scale(1.2); }
-.dot.done   { background: #22c55e; border-color: #22c55e; }
+::-webkit-scrollbar-thumb { background: #2d2f45; border-radius: 4px; }
