@@ -11,6 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from face_recognizer import FaceRecognizer
 import analyzer
 import tracker
+import behavior
 
 app = Flask(__name__)
 os.makedirs("known_faces", exist_ok=True)
@@ -66,6 +67,7 @@ _results = []
 _recognizer = FaceRecognizer()
 analyzer.start()
 analyzer.set_on_result_callback(tracker.update_demographics)
+behavior.start()
 
 def _capture_loop():
     global _frame, _results
@@ -88,10 +90,11 @@ def _capture_loop():
                 _results = results
             analyzer.submit(frame, results)
             tracker.update(results, frame, analyzer.get_results())
+            behavior.submit(frame, results)
 
 threading.Thread(target=_capture_loop, daemon=True).start()
 
-def _annotate(frame, results):
+def _annotate(frame, results, beh_results=None):
     identified = sum(1 for (_, _, _, _, n) in results if n != "Inconnu")
     unknown    = sum(1 for (_, _, _, _, n) in results if n == "Inconnu")
     for (x, y, w, h, name) in results:
@@ -106,6 +109,14 @@ def _annotate(frame, results):
     (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
     cv2.rectangle(frame, (8, 8), (lw + 18, lh + 18), (20, 20, 20), cv2.FILLED)
     cv2.putText(frame, label, (13, lh + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 2)
+    # Overlay comportemental (coin supérieur droit)
+    if beh_results:
+        b = beh_results[0]
+        btext = "Posture: {} ({}%)".format(b.get('vid_text', '?'), b.get('confidence', 0))
+        (bw, bh), _ = cv2.getTextSize(btext, cv2.FONT_HERSHEY_SIMPLEX, 0.52, 2)
+        bx = frame.shape[1] - bw - 18
+        cv2.rectangle(frame, (bx - 6, 8), (frame.shape[1] - 8, bh + 18), (25, 10, 40), cv2.FILLED)
+        cv2.putText(frame, btext, (bx, bh + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (200, 160, 255), 2)
     return frame
 
 def _generate():
@@ -116,7 +127,7 @@ def _generate():
         if frame is None:
             time.sleep(0.033)
             continue
-        _annotate(frame, results)
+        _annotate(frame, results, behavior.get_results())
         ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 78])
         if ok:
             yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n')
@@ -291,6 +302,28 @@ def analyze():
         'available': analyzer.is_available(),
         'results': analyzer.get_results()
     })
+
+
+@app.route('/behavior')
+@login_required
+def behavior_route():
+    return jsonify({
+        'available': behavior.is_available(),
+        'results': behavior.get_results()
+    })
+
+
+@app.route('/behavior/history')
+@login_required
+def behavior_history():
+    return jsonify(behavior.get_history())
+
+
+@app.route('/behavior/history/clear', methods=['POST'])
+@login_required
+def behavior_history_clear():
+    behavior.clear_history()
+    return jsonify({'success': True})
 
 
 @app.route('/history')
