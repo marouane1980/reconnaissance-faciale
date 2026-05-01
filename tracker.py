@@ -114,6 +114,40 @@ def update(results, frame=None, analyze_results=None):
                     break
 
 
+def update_demographics(analyze_results):
+    """Callback appelé par analyzer dès qu'un résultat DeepFace est prêt.
+    Met à jour l'entrée Inconnu la plus récente sans démographie, même si elle
+    n'est plus active (timeout dépassé).
+    """
+    if not analyze_results:
+        return
+    with _lock:
+        for ar in analyze_results:
+            if ar.get('error'):
+                continue
+            # Priorité : entrée Inconnu encore active
+            target_eid = _active.get('Inconnu', {}).get('id')
+            if target_eid is None:
+                # Sinon : cherche la plus récente sans démographie
+                for eid in _log_order[:20]:
+                    e = _log.get(eid)
+                    if e and e['name'] == 'Inconnu' and e.get('age') is None:
+                        target_eid = eid
+                        break
+            if target_eid is not None and target_eid in _log:
+                e = _log[target_eid]
+                if ar.get('face'):
+                    e['photo'] = ar['face']
+                e.update({
+                    'age':       ar.get('age'),
+                    'age_range': ar.get('age_range'),
+                    'gender':    ar.get('gender'),
+                    'emotion':   ar.get('emotion'),
+                    'face_size': ar.get('face_size'),
+                })
+            break  # un seul visage inconnu traité par appel
+
+
 def get_log(limit=500):
     with _lock:
         return [dict(_log[eid]) for eid in _log_order[:limit]]

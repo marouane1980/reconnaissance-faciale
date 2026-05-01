@@ -18,6 +18,7 @@ _queue        = queue.Queue(maxsize=1)
 _last_result  = []
 _results_lock = threading.Lock()
 _running      = False
+_on_result_cb = None   # callback(analyses) appelé dès qu'un résultat est prêt
 
 EMOTION_FR = {
     'happy': 'Heureux(se)', 'sad': 'Triste', 'angry': 'En colère',
@@ -111,6 +112,11 @@ def _worker():
             with _results_lock:
                 if analyses:   # ne réinitialise pas si aucun visage traité
                     _last_result = analyses
+            if _on_result_cb and analyses:
+                try:
+                    _on_result_cb(analyses)
+                except Exception:
+                    pass
             _queue.task_done()
 
 
@@ -120,6 +126,11 @@ def _estimate_relative_size(face_w, frame_w):
     elif ratio > 0.18: return 'Proche'
     elif ratio > 0.10: return 'Distance moyenne'
     else:              return 'Éloigné'
+
+
+def set_on_result_callback(fn):
+    global _on_result_cb
+    _on_result_cb = fn
 
 
 def start():

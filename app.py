@@ -65,6 +65,7 @@ _frame = None
 _results = []
 _recognizer = FaceRecognizer()
 analyzer.start()
+analyzer.set_on_result_callback(tracker.update_demographics)
 
 def _capture_loop():
     global _frame, _results
