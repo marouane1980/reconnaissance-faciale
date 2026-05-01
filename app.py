@@ -8,6 +8,7 @@ import cv2
 from flask import Flask, render_template, Response, request, jsonify, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from face_recognizer import FaceRecognizer
+import analyzer
 
 app = Flask(__name__)
 os.makedirs("known_faces", exist_ok=True)
@@ -61,6 +62,7 @@ _lock = threading.Lock()
 _frame = None
 _results = []
 _recognizer = FaceRecognizer()
+analyzer.start()
 
 def _capture_loop():
     global _frame, _results
@@ -81,6 +83,7 @@ def _capture_loop():
             results = _recognizer.recognize(frame)
             with _lock:
                 _results = results
+            analyzer.submit(frame, results)
 
 threading.Thread(target=_capture_loop, daemon=True).start()
 
@@ -276,6 +279,15 @@ def delete_face(name):
         _recognizer.load_known_faces()
         return jsonify({'success': True})
     return jsonify({'error': 'Introuvable'}), 404
+
+@app.route('/analyze')
+@login_required
+def analyze():
+    return jsonify({
+        'available': analyzer.is_available(),
+        'results': analyzer.get_results()
+    })
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
