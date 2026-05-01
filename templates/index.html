@@ -840,30 +840,18 @@
         var isSel = _selectedIds.has(r.id);
         if (isSel) tr.classList.add('row-selected');
 
-        // Checkbox
-        var cbTd = document.createElement('td');
-        cbTd.className = 'py-2.5 px-3';
-        var cb = document.createElement('input');
-        cb.type = 'checkbox'; cb.className = 'hist-cb'; cb.checked = isSel;
-        cb.dataset.id = r.id;
-        cb.onchange = (function(rid, row){ return function(){ toggleRow(rid, this.checked, row); }; })(r.id, tr);
-        cbTd.appendChild(cb);
-        tr.appendChild(cbTd);
-
-        // Photo
+        // Photo cell — simple, no onerror innerHTML manipulation
         var slug = r.name.toLowerCase().replace(/ /g, '_');
         var photoCell;
         if (r.photo) {
-          photoCell = '<img src="' + r.photo + '" class="w-9 h-9 rounded-lg object-cover" style="min-width:36px">';
+          photoCell = '<img src="' + r.photo + '" class="w-9 h-9 rounded-lg object-cover">';
         } else if (r.name !== 'Inconnu') {
           var initials = r.name.split(' ').map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase();
-          photoCell = '<img src="/face_photo/' + encodeURIComponent(slug) + '" class="w-9 h-9 rounded-lg object-cover"'
-            + ' onerror="this.outerHTML=\'<div class=\\\"w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold\\\">' + initials + '</div>\'">';
+          photoCell = '<div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-[11px] font-bold">' + escHtml(initials) + '</div>';
         } else {
           photoCell = '<div class="w-9 h-9 rounded-lg bg-[#1e2035] flex items-center justify-center text-slate-600 text-base font-bold">?</div>';
         }
 
-        // Status badge
         var statusBadge = r.status === 'present'
           ? '<span class="inline-flex items-center gap-1 bg-green-950/40 text-green-400 border border-green-900/40 text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full bg-green-400 live-dot inline-block"></span>Présent</span>'
           : '<span class="inline-flex items-center gap-1 bg-[#1e2035] text-slate-500 border border-[#2a2b3d] text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">Parti</span>';
@@ -886,20 +874,26 @@
           ? escHtml((EMOICONS[r.emotion]||'') + ' ' + r.emotion)
           : '<span class="text-slate-700">—</span>';
 
-        tr.insertAdjacentHTML('beforeend',
+        // Build full row via innerHTML (reliable, avoids insertAdjacentHTML on <tr>)
+        tr.innerHTML =
+          '<td class="py-2.5 px-3"><input type="checkbox" class="hist-cb" data-id="' + r.id + '"' + (isSel ? ' checked' : '') + '></td>' +
           '<td class="py-2.5 px-3">' + photoCell + '</td>' +
           '<td class="py-2.5 px-3 font-medium text-slate-200 whitespace-nowrap">' + escHtml(r.name) + '</td>' +
-          '<td class="py-2.5 px-3">'                  + statusBadge + '</td>' +
+          '<td class="py-2.5 px-3">' + statusBadge + '</td>' +
           '<td class="py-2.5 px-3 text-slate-500 whitespace-nowrap font-mono text-[11px]">' + date + '</td>' +
           '<td class="py-2.5 px-3 text-slate-400 whitespace-nowrap font-mono text-[11px]">' + timeIn + '</td>' +
           '<td class="py-2.5 px-3 text-slate-400 whitespace-nowrap font-mono text-[11px]">' + timeOut + '</td>' +
-          '<td class="py-2.5 px-3 text-slate-400 whitespace-nowrap">'  + fmtDuration(r.duration_s) + '</td>' +
-          '<td class="py-2.5 px-3">'                  + ageCell + '</td>' +
-          '<td class="py-2.5 px-3">'                  + genderCell + '</td>' +
+          '<td class="py-2.5 px-3 text-slate-400 whitespace-nowrap">' + fmtDuration(r.duration_s) + '</td>' +
+          '<td class="py-2.5 px-3">' + ageCell + '</td>' +
+          '<td class="py-2.5 px-3">' + genderCell + '</td>' +
           '<td class="py-2.5 px-3 whitespace-nowrap">' + emotionCell + '</td>' +
           '<td class="py-2.5 px-3 text-slate-500 text-[10px] whitespace-nowrap">' + escHtml(r.face_size||'—') + '</td>' +
-          '<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">'  + escHtml(r.camera||'—') + '</td>'
-        );
+          '<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">' + escHtml(r.camera||'—') + '</td>';
+
+        // Attach onchange after innerHTML (element now exists in DOM)
+        var cb = tr.querySelector('.hist-cb');
+        cb.onchange = (function(rid, row){ return function(){ toggleRow(rid, this.checked, row); }; })(r.id, tr);
+
         tbody.appendChild(tr);
       });
       updateSelToolbar();
