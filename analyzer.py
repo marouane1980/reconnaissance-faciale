@@ -20,12 +20,6 @@ _results_lock = threading.Lock()
 _running      = False
 _on_result_cb = None   # callback(analyses) appelé dès qu'un résultat est prêt
 
-EMOTION_FR = {
-    'happy': 'Heureux(se)', 'sad': 'Triste', 'angry': 'En colère',
-    'fear': 'Peur', 'surprise': 'Surpris(e)', 'disgust': 'Dégoût',
-    'neutral': 'Neutre', 'contempt': 'Mépris'
-}
-
 
 def _encode(img):
     ok, buf = cv2.imencode('.jpg', img, [cv2.IMWRITE_JPEG_QUALITY, 82])
@@ -67,7 +61,7 @@ def _worker():
                 try:
                     res = DeepFace.analyze(
                         face,
-                        actions=['age', 'gender', 'emotion'],
+                        actions=['age', 'gender'],
                         enforce_detection=False,
                         silent=True
                     )
@@ -79,11 +73,6 @@ def _worker():
                     gkey = 'Man' if 'man' in gender_raw.lower() else 'Woman'
                     gender_conf = round(float(gender_scores.get(gkey, 0)), 1) \
                         if isinstance(gender_scores, dict) else None
-
-                    emotion_raw = r.get('dominant_emotion', 'neutral') or 'neutral'
-                    emotion_scores = r.get('emotion', {})
-                    emotion_conf = round(float(emotion_scores.get(emotion_raw, 0)), 1) \
-                        if isinstance(emotion_scores, dict) else None
 
                     age = int(r.get('age', 0))
                     if age <= 12:   tranche = 'Enfant'
@@ -97,8 +86,6 @@ def _worker():
                         'age_range': tranche,
                         'gender': gender_fr,
                         'gender_conf': gender_conf,
-                        'emotion': EMOTION_FR.get(emotion_raw, emotion_raw.capitalize()),
-                        'emotion_conf': emotion_conf,
                         'face_size': _estimate_relative_size(w, frame.shape[1]),
                     })
                 except Exception as e:

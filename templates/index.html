@@ -290,13 +290,12 @@
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Durée</th>
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Âge</th>
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sexe</th>
-                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Émotion</th>
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Distance</th>
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Caméra</th>
                 </tr>
               </thead>
               <tbody id="histTbody">
-                <tr><td colspan="13" class="text-center text-slate-600 italic py-14">Aucune donnée — les apparitions s'enregistrent automatiquement</td></tr>
+                <tr><td colspan="12" class="text-center text-slate-600 italic py-14">Aucune donnée — les apparitions s'enregistrent automatiquement</td></tr>
               </tbody>
             </table>
           </div>
@@ -820,20 +819,20 @@
         var mI     = _histFilter.ident  === 'all'
                   || (_histFilter.ident === 'known'   && r.name !== 'Inconnu')
                   || (_histFilter.ident === 'unknown' && r.name === 'Inconnu');
-        return mQ && mS && mI;
+        var mD     = (r.duration_s || 0) >= 2;
+        return mQ && mS && mI && mD;
       });
 
       document.getElementById('historyCount').textContent = data.length;
       var tbody = document.getElementById('histTbody');
 
       if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="13" class="text-center text-slate-600 italic py-12">Aucune entrée ne correspond aux filtres</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center text-slate-600 italic py-12">Aucune entrée ne correspond aux filtres</td></tr>';
         updateSelToolbar();
         return;
       }
 
       tbody.innerHTML = '';
-      var EMOICONS = {'Heureux(se)':'😊','Triste':'😢','En colère':'😠','Peur':'😨','Surpris(e)':'😮','Dégoût':'🤢','Neutre':'😐','Mépris':'😒'};
 
       data.forEach(function(r) {
         var tr = document.createElement('tr');
@@ -870,10 +869,6 @@
           ? '<span class="text-pink-400 whitespace-nowrap">♀ Femme</span>'
           : '<span class="text-slate-700">—</span>';
 
-        var emotionCell = r.emotion
-          ? escHtml((EMOICONS[r.emotion]||'') + ' ' + r.emotion)
-          : '<span class="text-slate-700">—</span>';
-
         // Build full row via innerHTML (reliable, avoids insertAdjacentHTML on <tr>)
         tr.innerHTML =
           '<td class="py-2.5 px-3"><input type="checkbox" class="hist-cb" data-id="' + r.id + '"' + (isSel ? ' checked' : '') + '></td>' +
@@ -886,7 +881,6 @@
           '<td class="py-2.5 px-3 text-slate-400 whitespace-nowrap">' + fmtDuration(r.duration_s) + '</td>' +
           '<td class="py-2.5 px-3">' + ageCell + '</td>' +
           '<td class="py-2.5 px-3">' + genderCell + '</td>' +
-          '<td class="py-2.5 px-3 whitespace-nowrap">' + emotionCell + '</td>' +
           '<td class="py-2.5 px-3 text-slate-500 text-[10px] whitespace-nowrap">' + escHtml(r.face_size||'—') + '</td>' +
           '<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">' + escHtml(r.camera||'—') + '</td>';
 
@@ -997,7 +991,7 @@
     }
 
     function _buildAndDownloadCSV(data, suffix) {
-      var rows = [['ID','Nom','Statut','Date','Heure entrée','Heure sortie','Durée (s)','Âge','Tranche d\'âge','Sexe','Émotion','Distance caméra','Source']];
+      var rows = [['ID','Nom','Statut','Date','Heure entrée','Heure sortie','Durée (s)','Âge','Tranche d\'âge','Sexe','Distance caméra','Source']];
       data.forEach(function(r) {
         rows.push([
           r.id, r.name,
@@ -1007,7 +1001,7 @@
           r.last_seen  ? r.last_seen.split(' ')[1]  : '',
           r.duration_s || 0,
           r.age || '', r.age_range || '',
-          r.gender || '', r.emotion || '',
+          r.gender || '',
           r.face_size || '', r.camera || ''
         ]);
       });

@@ -85,7 +85,6 @@ def update(results, frame=None, analyze_results=None):
                     'age':        None,
                     'age_range':  None,
                     'gender':     None,
-                    'emotion':    None,
                     'face_size':  None,
                 }
                 _log_order.insert(0, eid)
@@ -108,7 +107,6 @@ def update(results, frame=None, analyze_results=None):
                         'age':       ar.get('age'),
                         'age_range': ar.get('age_range'),
                         'gender':    ar.get('gender'),
-                        'emotion':   ar.get('emotion'),
                         'face_size': ar.get('face_size'),
                     })
                     break
@@ -142,7 +140,6 @@ def update_demographics(analyze_results):
                     'age':       ar.get('age'),
                     'age_range': ar.get('age_range'),
                     'gender':    ar.get('gender'),
-                    'emotion':   ar.get('emotion'),
                     'face_size': ar.get('face_size'),
                 })
             break  # un seul visage inconnu traité par appel
