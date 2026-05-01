@@ -1,6 +1,7 @@
 """Analyse comportementale — détection de posture via MediaPipe Pose."""
 
 import cv2
+import base64
 import time
 import threading
 import queue
@@ -77,17 +78,34 @@ def _classify(lm):
     return 'debout', 0.90
 
 
+def _thumb(frame):
+    """Miniature 120px de large, encodée en base64 JPEG."""
+    try:
+        h, w = frame.shape[:2]
+        tw = 120
+        th = int(h * tw / w)
+        small = cv2.resize(frame, (tw, th))
+        ok, buf = cv2.imencode('.jpg', small, [cv2.IMWRITE_JPEG_QUALITY, 65])
+        if ok and buf is not None:
+            return 'data:image/jpeg;base64,' + base64.b64encode(buf).decode()
+    except Exception:
+        pass
+    return None
+
+
 def _finalize(end_ts):
     global _current_sess, _hist_id
     if _current_sess is None:
         return
     duration = int(end_ts - _current_sess['_ts'])
-    if duration >= 2:
+    # N'enregistrer que les postures réelles détectées (>= 2 s, non inconnu)
+    if duration >= 2 and _current_sess['behavior'] != 'inconnu':
         with _history_lock:
             _hist_id += 1
             entry = {
                 'id':         _hist_id,
                 'name':       _current_sess['_name'],
+                'photo':      _current_sess.get('_photo'),
                 'behavior':   _current_sess['behavior'],
                 'label':      _current_sess['label'],
                 'color':      _current_sess['color'],
@@ -101,21 +119,21 @@ def _finalize(end_ts):
     _current_sess = None
 
 
-def _update_session(pose_key, name):
+def _update_session(pose_key, name, frame=None):
     global _current_sess
     ts  = time.time()
     now = _now_str()
     label, color, _ = _POSE_META.get(pose_key, _POSE_META['inconnu'])
     if _current_sess is None:
         _current_sess = {
-            '_ts': ts, '_name': name,
+            '_ts': ts, '_name': name, '_photo': _thumb(frame) if frame is not None else None,
             'behavior': pose_key, 'label': label, 'color': color,
             'first_seen': now,
         }
     elif _current_sess['behavior'] != pose_key:
         _finalize(ts)
         _current_sess = {
-            '_ts': ts, '_name': name,
+            '_ts': ts, '_name': name, '_photo': _thumb(frame) if frame is not None else None,
             'behavior': pose_key, 'label': label, 'color': color,
             'first_seen': now,
         }
@@ -147,7 +165,7 @@ def _worker():
                     'confidence': round(conf * 100),
                     'name':       name,
                 })
-                _update_session(pose_key, name)
+                _update_session(pose_key, name, frame)
         except Exception as e:
             print('[behavior] worker error:', e)
         finally:

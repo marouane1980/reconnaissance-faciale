@@ -139,15 +139,13 @@
         <svg id="arr-behav" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div id="sec-behav" class="flex flex-col gap-1">
-        <button onclick="setNav('behavior')" id="nav-behavior" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="activity" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Posture &amp; Gestes</span>
-          <span id="behaviorBadge" class="ml-auto bg-violet-950/60 text-violet-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">●</span>
+        <button onclick="setNav('behavior')" id="nav-behavior" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
+          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Posture &amp; Gestes</span>
+          <span id="behaviorBadge" class="bg-violet-950/60 text-violet-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">●</span>
         </button>
-        <button onclick="setNav('behavhist')" id="nav-behavhist" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="table-2" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Historique</span>
-          <span id="behavHistBadge" class="ml-auto bg-violet-950/60 text-violet-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
+        <button onclick="setNav('behavhist')" id="nav-behavhist" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
+          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Historique</span>
+          <span id="behavHistBadge" class="bg-violet-950/60 text-violet-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
         </button>
       </div>
 
@@ -352,6 +350,7 @@
             <table class="w-full text-xs border-collapse" style="min-width:700px">
               <thead class="sticky top-0 z-10 bg-[#0f1020] border-b border-[#1e2035]">
                 <tr>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-14">Photo</th>
                   <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Personne</th>
                   <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Comportement</th>
                   <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Date</th>
@@ -361,7 +360,7 @@
                 </tr>
               </thead>
               <tbody id="behavHistTbody">
-                <tr><td colspan="6" class="text-center text-slate-600 italic py-14">Aucune donnée — les comportements s'enregistrent automatiquement</td></tr>
+                <tr><td colspan="7" class="text-center text-slate-600 italic py-14">Aucune donnée — les comportements s'enregistrent automatiquement</td></tr>
               </tbody>
             </table>
           </div>
@@ -948,7 +947,7 @@
 
       var tbody = document.getElementById('behavHistTbody');
       if (!data.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-slate-600 italic py-12">Aucune entrée ne correspond aux filtres</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-slate-600 italic py-12">Aucune entrée ne correspond aux filtres</td></tr>';
         return;
       }
       tbody.innerHTML = '';
@@ -958,9 +957,22 @@
         var tOut   = r.last_seen  ? r.last_seen.split(' ')[1]  : '—';
         var icon   = POSE_ICONS[r.behavior] || '❓';
         var clr    = POSE_COLORS[r.color]   || 'text-slate-300';
+
+        // Photo cell
+        var photoCell;
+        if (r.photo) {
+          photoCell = '<img src="' + r.photo + '" class="w-9 h-9 rounded-lg object-cover">';
+        } else if (r.name && r.name !== 'Inconnu') {
+          var initials = r.name.split(' ').map(function(w){ return w[0]||''; }).join('').slice(0,2).toUpperCase();
+          photoCell = '<div class="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-[11px] font-bold">' + escHtml(initials) + '</div>';
+        } else {
+          photoCell = '<div class="w-9 h-9 rounded-lg bg-[#1e2035] flex items-center justify-center text-slate-600 text-base">?</div>';
+        }
+
         var tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid #1e2035';
         tr.innerHTML =
+          '<td class="py-2.5 px-4">' + photoCell + '</td>' +
           '<td class="py-2.5 px-4 font-medium text-slate-200 whitespace-nowrap">' + escHtml(r.name) + '</td>' +
           '<td class="py-2.5 px-4 whitespace-nowrap"><span class="' + clr + ' font-semibold">' + icon + ' ' + escHtml(r.label) + '</span></td>' +
           '<td class="py-2.5 px-4 text-slate-500 font-mono text-[11px] whitespace-nowrap">' + date + '</td>' +
@@ -982,7 +994,7 @@
     }
 
     function exportBehaviorCSV() {
-      var rows = [['Personne','Comportement','Date','Heure début','Heure fin','Durée (s)']];
+      var rows = [['Personne','Posture détectée','Date','Heure début','Heure fin','Durée (s)']];
       _behavData.forEach(function(r) {
         rows.push([
           r.name, r.label,
