@@ -129,6 +129,17 @@ def get_stats():
             'identified': identified, 'unknown': unknowns}
 
 
+def delete_entries(ids):
+    ids_set = set(int(i) for i in ids)
+    with _lock:
+        for eid in ids_set:
+            _log.pop(eid, None)
+            for name, info in list(_active.items()):
+                if info['id'] == eid:
+                    del _active[name]
+        _log_order[:] = [eid for eid in _log_order if eid not in ids_set]
+
+
 def clear():
     global _log, _log_order, _active, _id_counter
     with _lock:

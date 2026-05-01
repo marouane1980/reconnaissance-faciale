@@ -304,6 +304,15 @@ def history_stats():
     return jsonify(tracker.get_stats())
 
 
+@app.route('/history/delete', methods=['POST'])
+@login_required
+def history_delete():
+    data = request.get_json() or {}
+    ids  = data.get('ids', [])
+    tracker.delete_entries(ids)
+    return jsonify({'success': True, 'deleted': len(ids)})
+
+
 @app.route('/history/clear', methods=['POST'])
 @login_required
 def history_clear():
