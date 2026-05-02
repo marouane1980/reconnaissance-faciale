@@ -117,6 +117,8 @@ def _annotate(frame, results, beh_results=None):
         bx = frame.shape[1] - bw - 18
         cv2.rectangle(frame, (bx - 6, 8), (frame.shape[1] - 8, bh + 18), (25, 10, 40), cv2.FILLED)
         cv2.putText(frame, btext, (bx, bh + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (200, 160, 255), 2)
+    # Landmarks MediaPipe (si activés)
+    behavior.draw_landmarks_on(frame)
     return frame
 
 def _generate():
@@ -324,6 +326,56 @@ def behavior_history():
 def behavior_history_clear():
     behavior.clear_history()
     return jsonify({'success': True})
+
+
+@app.route('/behavior/falls')
+@login_required
+def behavior_falls():
+    return jsonify(behavior.get_fall_history())
+
+
+@app.route('/behavior/falls/clear', methods=['POST'])
+@login_required
+def behavior_falls_clear():
+    behavior.clear_fall_history()
+    return jsonify({'success': True})
+
+
+@app.route('/behavior/settings', methods=['GET'])
+@login_required
+def behavior_settings_get():
+    return jsonify(behavior.get_settings())
+
+
+@app.route('/behavior/settings', methods=['POST'])
+@login_required
+def behavior_settings_post():
+    data = request.get_json() or {}
+    behavior.apply_settings(data)
+    return jsonify({'success': True, 'settings': behavior.get_settings()})
+
+
+@app.route('/analyze/force_all', methods=['POST'])
+@login_required
+def analyze_force_all():
+    with _lock:
+        frame   = _frame.copy() if _frame is not None else None
+        results = list(_results)
+    if frame is None:
+        return jsonify({'error': 'Caméra non disponible'}), 500
+    if not results:
+        return jsonify({'error': 'Aucun visage dans le cadre'}), 400
+    analyzer.submit_all(frame, results)
+    return jsonify({'success': True, 'count': len(results)})
+
+
+@app.route('/analyze/all_results')
+@login_required
+def analyze_all_results():
+    return jsonify({
+        'available': analyzer.is_available(),
+        'results':   analyzer.get_all_results()
+    })
 
 
 @app.route('/history')

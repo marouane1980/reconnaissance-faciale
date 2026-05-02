@@ -142,9 +142,66 @@ def submit(frame, faces_results):
         pass
 
 
+def submit_all(frame, faces_results):
+    """Analyse TOUTES les personnes visibles (connus + inconnus) dans un thread dédié."""
+    if not _AVAILABLE:
+        return
+    threading.Thread(target=_analyze_all, args=(frame.copy(), list(faces_results)), daemon=True).start()
+
+
+def _analyze_all(frame, faces_results):
+    global _all_result
+    results = []
+    for (x, y, w, h, name) in faces_results:
+        pad = int(max(w, h) * 0.15)
+        x1 = max(0, x - pad); y1 = max(0, y - pad)
+        x2 = min(frame.shape[1], x + w + pad); y2 = min(frame.shape[0], y + h + pad)
+        face = frame[y1:y2, x1:x2]
+        if face.size == 0:
+            continue
+        try:
+            face_b64 = _encode(face)
+        except Exception:
+            face_b64 = None
+        entry = {'bbox': [int(x), int(y), int(w), int(h)], 'face': face_b64, 'name': name}
+        try:
+            res = DeepFace.analyze(face, actions=['age', 'gender'],
+                                   enforce_detection=False, silent=True)
+            r = res[0] if isinstance(res, list) else res
+            gender_raw   = r.get('dominant_gender', '') or ''
+            gender_fr    = 'Homme' if 'man' in gender_raw.lower() else 'Femme'
+            gender_scores = r.get('gender', {})
+            gkey         = 'Man' if 'man' in gender_raw.lower() else 'Woman'
+            gender_conf  = round(float(gender_scores.get(gkey, 0)), 1) \
+                           if isinstance(gender_scores, dict) else None
+            age          = int(r.get('age', 0))
+            if age <= 12:   tranche = 'Enfant'
+            elif age <= 17: tranche = 'Adolescent(e)'
+            elif age <= 35: tranche = 'Jeune adulte'
+            elif age <= 60: tranche = 'Adulte'
+            else:           tranche = 'Senior'
+            entry.update({'age': age, 'age_range': tranche, 'gender': gender_fr,
+                          'gender_conf': gender_conf,
+                          'face_size': _estimate_relative_size(w, frame.shape[1])})
+        except Exception as e:
+            entry['error'] = str(e)
+        results.append(entry)
+    with _all_lock:
+        _all_result = results
+
+
+_all_result = []
+_all_lock   = threading.Lock()
+
+
 def get_results():
     with _results_lock:
         return list(_last_result)
+
+
+def get_all_results():
+    with _all_lock:
+        return list(_all_result)
 
 
 def is_available():
