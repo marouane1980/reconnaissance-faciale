@@ -159,6 +159,11 @@
           <i data-lucide="sliders-horizontal" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
           <span class="nav-label text-sm font-medium text-slate-400">Paramètres</span>
         </button>
+        <button onclick="setNav('cameras')" id="nav-cameras" class="nav-item hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
+          <i data-lucide="camera" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-sm font-medium text-slate-400">Caméras</span>
+          <span id="camNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
+        </button>
       </div>
 
     </nav>
@@ -323,6 +328,42 @@
               </thead>
               <tbody id="histTbody">
                 <tr><td colspan="12" class="text-center text-slate-600 italic py-14">Aucune donnée — les apparitions s'enregistrent automatiquement</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Cameras admin view ── -->
+        <div id="main-cameras" class="hidden flex-1 flex flex-col overflow-hidden">
+          <div class="px-6 py-4 border-b border-[#1e2035] flex items-center gap-3 flex-shrink-0 bg-[#0f1020]">
+            <i data-lucide="camera" class="w-4 h-4 text-indigo-400 flex-shrink-0"></i>
+            <h2 class="text-sm font-semibold text-white">Gestion des caméras</h2>
+            <span id="camTableCount" class="bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+            <div class="ml-auto flex items-center gap-2">
+              <button onclick="loadCameras()" class="flex items-center gap-1.5 bg-[#1e2035] hover:bg-[#2a2b3d] text-slate-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Actualiser
+              </button>
+              <button onclick="openAddCam()" class="flex items-center gap-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-600/40 text-indigo-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="plus" class="w-3 h-3"></i> Ajouter
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 overflow-auto">
+            <table class="w-full text-xs border-collapse" style="min-width:900px">
+              <thead class="sticky top-0 z-10 bg-[#0f1020] border-b border-[#1e2035]">
+                <tr>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Label</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Pièce</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Protocole</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">URL / IP</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Fonctionnalités</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Statut</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Actif</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="camTbody">
+                <tr><td colspan="8" class="text-center text-slate-600 italic py-14">Chargement...</td></tr>
               </tbody>
             </table>
           </div>
@@ -725,6 +766,115 @@
           </div>
         </div>
 
+        <!-- Panel: Caméras (formulaire ajout/édition) -->
+        <div id="panel-cameras" class="panel flex-1 overflow-y-auto p-5 gap-4">
+          <div class="flex items-center justify-between flex-shrink-0">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider" id="camFormTitle">Nouvelle caméra</p>
+          </div>
+
+          <div class="gradient-border rounded-xl p-4 flex flex-col gap-3">
+            <input type="hidden" id="camEditId" value="">
+
+            <div>
+              <label class="text-[11px] text-slate-500 mb-1 block">Label</label>
+              <input type="text" id="camLabel" placeholder="Ex : Caméra entrée"
+                class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
+            </div>
+
+            <div>
+              <label class="text-[11px] text-slate-500 mb-1 block">Pièce</label>
+              <select id="camRoom" class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500">
+              </select>
+            </div>
+
+            <div>
+              <label class="text-[11px] text-slate-500 mb-1 block">Protocole</label>
+              <select id="camProtocol" onchange="onCamProtocolChange()"
+                class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500">
+                <option value="webcam">Webcam locale</option>
+                <option value="rtsp">RTSP (IP cam)</option>
+                <option value="http">HTTP / MJPEG</option>
+              </select>
+            </div>
+
+            <!-- Webcam only -->
+            <div id="camWebcamFields">
+              <label class="text-[11px] text-slate-500 mb-1 block">Index webcam</label>
+              <input type="text" id="camUrl" placeholder="0"
+                class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
+            </div>
+
+            <!-- IP cam fields -->
+            <div id="camIpFields" class="hidden flex flex-col gap-2">
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[11px] text-slate-500 mb-1 block">Adresse IP</label>
+                  <input type="text" id="camIp" placeholder="192.168.1.100"
+                    class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
+                </div>
+                <div>
+                  <label class="text-[11px] text-slate-500 mb-1 block">Port</label>
+                  <input type="text" id="camPort" placeholder="554"
+                    class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
+                </div>
+              </div>
+              <div>
+                <label class="text-[11px] text-slate-500 mb-1 block">URL complète (optionnel)</label>
+                <input type="text" id="camUrlFull" placeholder="rtsp://ip:554/stream"
+                  class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[11px] text-slate-500 mb-1 block">Utilisateur</label>
+                  <input type="text" id="camUsername" placeholder="admin"
+                    class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
+                </div>
+                <div>
+                  <label class="text-[11px] text-slate-500 mb-1 block">Mot de passe</label>
+                  <input type="password" id="camPassword" placeholder="••••••"
+                    class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
+                </div>
+              </div>
+            </div>
+
+            <!-- Features -->
+            <div>
+              <label class="text-[11px] text-slate-500 mb-2 block">Fonctionnalités</label>
+              <div class="flex flex-col gap-1.5">
+                <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                  <input type="checkbox" id="camFeatFace" checked class="accent-indigo-500 w-3 h-3">
+                  Reconnaissance faciale
+                </label>
+                <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                  <input type="checkbox" id="camFeatBehav" checked class="accent-violet-500 w-3 h-3">
+                  Analyse comportementale
+                </label>
+              </div>
+            </div>
+
+            <!-- Enabled -->
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-slate-400">Caméra activée</span>
+              <button id="camEnabledBtn" onclick="toggleCamEnabled()"
+                class="px-3 py-1 rounded-lg text-[11px] font-semibold border transition-colors bg-green-950/40 text-green-400 border-green-900/50">
+                OUI
+              </button>
+            </div>
+            <input type="hidden" id="camEnabled" value="1">
+
+            <button onclick="saveCam()" id="saveCamBtn"
+              class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90 text-white font-semibold rounded-lg py-2.5 text-xs transition-all flex items-center justify-center gap-2">
+              <i data-lucide="save" class="w-3.5 h-3.5"></i>
+              Enregistrer
+            </button>
+            <button onclick="resetCamForm()"
+              class="w-full border border-[#2a2b3d] hover:border-slate-600 text-slate-500 hover:text-slate-300 rounded-lg py-2 text-xs transition-colors">
+              Réinitialiser
+            </button>
+            <div id="camFormMsg" class="text-[11px] min-h-[14px]"></div>
+          </div>
+        </div>
+
         <!-- Panel: Historique comportemental (filtres) -->
         <div id="panel-behavhist" class="panel flex-1 overflow-y-auto p-5 gap-4">
           <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filtres</p>
@@ -768,7 +918,7 @@
     lucide.createIcons();
 
     // ── Navigation ──
-    var NAVS = ['dashboard','analyse','history','add','people','settings','behavior','behavhist'];
+    var NAVS = ['dashboard','analyse','history','add','people','settings','behavior','behavhist','cameras'];
     function setNav(name) {
       NAVS.forEach(function(n) {
         var btn   = document.getElementById('nav-' + n);
@@ -778,13 +928,17 @@
       });
       var isHist      = (name === 'history');
       var isBehavHist = (name === 'behavhist');
-      document.getElementById('main-default').style.display   = (isHist || isBehavHist) ? 'none' : '';
+      var isCameras   = (name === 'cameras');
+      var isTable     = isHist || isBehavHist || isCameras;
+      document.getElementById('main-default').style.display   = isTable ? 'none' : '';
       document.getElementById('main-history').style.display   = isHist      ? 'flex' : 'none';
       document.getElementById('main-behavhist').style.display = isBehavHist ? 'flex' : 'none';
+      document.getElementById('main-cameras').style.display   = isCameras   ? 'flex' : 'none';
 
       if (name === 'people' || name === 'dashboard') loadFaces();
       if (name === 'history')   loadHistory();
       if (name === 'behavhist') loadBehaviorHistory();
+      if (name === 'cameras')   loadCameras();
     }
 
     // ── Sections pliables ──
@@ -1622,6 +1776,218 @@
       if (e.key === 'Enter') startWizard();
     });
 
+    // ══════════════════════════════════════════
+    //  CAMÉRAS
+    // ══════════════════════════════════════════
+    var _camMeta  = { rooms: [], features: {} };
+    var _camData  = [];
+    var _camEnabledState = true;
+
+    function loadCamMeta() {
+      fetch('/cameras/meta').then(function(r){return r.json();}).then(function(d){
+        _camMeta = d;
+        var sel = document.getElementById('camRoom');
+        sel.innerHTML = '';
+        (d.rooms || []).forEach(function(room){
+          var opt = document.createElement('option');
+          opt.value = room; opt.textContent = room;
+          sel.appendChild(opt);
+        });
+      }).catch(function(){});
+    }
+
+    function loadCameras() {
+      fetch('/cameras').then(function(r){return r.json();}).then(function(d){
+        _camData = d;
+        document.getElementById('camTableCount').textContent = d.length;
+        document.getElementById('camNavBadge').textContent   = d.length;
+        renderCameras(d);
+      }).catch(function(){});
+    }
+
+    function renderCameras(cams) {
+      var tbody = document.getElementById('camTbody');
+      if (!cams.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-600 italic py-14">Aucune caméra configurée</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      cams.forEach(function(c) {
+        var tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #1e2035';
+
+        var statusBadge = c.connected
+          ? '<span class="inline-flex items-center gap-1 bg-green-950/40 text-green-400 border border-green-900/40 text-[10px] font-semibold px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-green-400 live-dot inline-block"></span>Connecté</span>'
+          : c.error
+          ? '<span class="inline-flex items-center gap-1 bg-red-950/40 text-red-400 border border-red-900/40 text-[10px] font-semibold px-2 py-0.5 rounded-full">Erreur</span>'
+          : '<span class="inline-flex items-center gap-1 bg-[#1e2035] text-slate-500 border border-[#2a2b3d] text-[10px] font-semibold px-2 py-0.5 rounded-full">Arrêtée</span>';
+
+        var feats = (c.features || []).map(function(f){
+          var icons = { face_recognition: '👤', behavior_analysis: '🧍' };
+          return '<span class="text-[10px] bg-indigo-950/40 text-indigo-400 border border-indigo-900/30 px-1.5 py-0.5 rounded mr-1">' + (icons[f] || f) + '</span>';
+        }).join('');
+
+        var urlDisplay = c.ip ? (c.ip + (c.port ? ':' + c.port : '')) : escHtml(c.url || '0');
+        var proto = c.protocol || 'webcam';
+
+        var enabledBtn = c.enabled
+          ? '<button onclick="camToggle(\'' + c.id + '\',false)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-green-950/40 text-green-400 border border-green-900/40 hover:bg-red-950/40 hover:text-red-400 hover:border-red-900/40 transition-colors">ON</button>'
+          : '<button onclick="camToggle(\'' + c.id + '\',true)"  class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#1e2035] text-slate-500 border border-[#2a2b3d] hover:bg-green-950/40 hover:text-green-400 hover:border-green-900/40 transition-colors">OFF</button>';
+
+        tr.innerHTML =
+          '<td class="py-2.5 px-4 font-medium text-slate-200 whitespace-nowrap">' + escHtml(c.label || c.id) + '</td>' +
+          '<td class="py-2.5 px-4 text-slate-400 whitespace-nowrap">' + escHtml(c.room || '—') + '</td>' +
+          '<td class="py-2.5 px-4 text-slate-500 whitespace-nowrap font-mono text-[11px]">' + escHtml(proto) + '</td>' +
+          '<td class="py-2.5 px-4 text-slate-500 whitespace-nowrap font-mono text-[11px]">' + urlDisplay + '</td>' +
+          '<td class="py-2.5 px-4">' + (feats || '<span class="text-slate-600">—</span>') + '</td>' +
+          '<td class="py-2.5 px-4">' + statusBadge + '</td>' +
+          '<td class="py-2.5 px-4">' + enabledBtn + '</td>' +
+          '<td class="py-2.5 px-4 whitespace-nowrap">' +
+            '<button onclick="openEditCam(\'' + c.id + '\')" class="text-indigo-400 hover:text-indigo-300 text-[11px] font-semibold mr-3 transition-colors">Modifier</button>' +
+            '<button onclick="deleteCam(\'' + c.id + '\')" class="text-red-400 hover:text-red-300 text-[11px] font-semibold transition-colors">Supprimer</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function onCamProtocolChange() {
+      var proto = document.getElementById('camProtocol').value;
+      document.getElementById('camWebcamFields').style.display = (proto === 'webcam') ? '' : 'none';
+      document.getElementById('camIpFields').style.display     = (proto !== 'webcam') ? 'flex' : 'none';
+    }
+
+    function toggleCamEnabled() {
+      _camEnabledState = !_camEnabledState;
+      var btn = document.getElementById('camEnabledBtn');
+      document.getElementById('camEnabled').value = _camEnabledState ? '1' : '0';
+      btn.textContent = _camEnabledState ? 'OUI' : 'NON';
+      btn.className = _camEnabledState
+        ? 'px-3 py-1 rounded-lg text-[11px] font-semibold border transition-colors bg-green-950/40 text-green-400 border-green-900/50'
+        : 'px-3 py-1 rounded-lg text-[11px] font-semibold border transition-colors bg-[#1e2035] text-slate-500 border-[#2a2b3d]';
+    }
+
+    function resetCamForm() {
+      document.getElementById('camEditId').value = '';
+      document.getElementById('camLabel').value  = '';
+      document.getElementById('camUrl').value    = '0';
+      document.getElementById('camIp').value     = '';
+      document.getElementById('camPort').value   = '';
+      document.getElementById('camUrlFull').value= '';
+      document.getElementById('camUsername').value = '';
+      document.getElementById('camPassword').value = '';
+      document.getElementById('camProtocol').value = 'webcam';
+      document.getElementById('camFeatFace').checked  = true;
+      document.getElementById('camFeatBehav').checked = true;
+      _camEnabledState = true;
+      document.getElementById('camEnabled').value = '1';
+      document.getElementById('camEnabledBtn').textContent  = 'OUI';
+      document.getElementById('camEnabledBtn').className    = 'px-3 py-1 rounded-lg text-[11px] font-semibold border transition-colors bg-green-950/40 text-green-400 border-green-900/50';
+      document.getElementById('camFormTitle').textContent   = 'Nouvelle caméra';
+      document.getElementById('camFormMsg').textContent     = '';
+      onCamProtocolChange();
+      if (_camMeta.rooms && _camMeta.rooms.length)
+        document.getElementById('camRoom').value = _camMeta.rooms[0];
+    }
+
+    function openAddCam() {
+      resetCamForm();
+      setNav('cameras');
+    }
+
+    function openEditCam(id) {
+      var c = _camData.find(function(x){ return x.id === id; });
+      if (!c) return;
+      document.getElementById('camEditId').value    = c.id;
+      document.getElementById('camLabel').value     = c.label || '';
+      document.getElementById('camRoom').value      = c.room  || '';
+      document.getElementById('camProtocol').value  = c.protocol || 'webcam';
+      document.getElementById('camIp').value        = c.ip   || '';
+      document.getElementById('camPort').value      = c.port || '';
+      document.getElementById('camUrlFull').value   = (c.protocol !== 'webcam') ? (c.url || '') : '';
+      document.getElementById('camUrl').value       = (c.protocol === 'webcam') ? (c.url || '0') : '0';
+      document.getElementById('camUsername').value  = c.username || '';
+      document.getElementById('camPassword').value  = '';
+      document.getElementById('camFeatFace').checked  = (c.features || []).indexOf('face_recognition')  >= 0;
+      document.getElementById('camFeatBehav').checked = (c.features || []).indexOf('behavior_analysis') >= 0;
+      _camEnabledState = !!c.enabled;
+      document.getElementById('camEnabled').value = _camEnabledState ? '1' : '0';
+      document.getElementById('camEnabledBtn').textContent = _camEnabledState ? 'OUI' : 'NON';
+      document.getElementById('camEnabledBtn').className   = _camEnabledState
+        ? 'px-3 py-1 rounded-lg text-[11px] font-semibold border transition-colors bg-green-950/40 text-green-400 border-green-900/50'
+        : 'px-3 py-1 rounded-lg text-[11px] font-semibold border transition-colors bg-[#1e2035] text-slate-500 border-[#2a2b3d]';
+      document.getElementById('camFormTitle').textContent = 'Modifier — ' + escHtml(c.label || c.id);
+      document.getElementById('camFormMsg').textContent   = '';
+      onCamProtocolChange();
+    }
+
+    function saveCam() {
+      var id       = document.getElementById('camEditId').value;
+      var proto    = document.getElementById('camProtocol').value;
+      var url      = (proto === 'webcam')
+                       ? document.getElementById('camUrl').value.trim() || '0'
+                       : document.getElementById('camUrlFull').value.trim();
+      var feats = [];
+      if (document.getElementById('camFeatFace').checked)  feats.push('face_recognition');
+      if (document.getElementById('camFeatBehav').checked) feats.push('behavior_analysis');
+
+      var data = {
+        label:    document.getElementById('camLabel').value.trim(),
+        room:     document.getElementById('camRoom').value,
+        protocol: proto,
+        url:      url,
+        ip:       document.getElementById('camIp').value.trim(),
+        port:     document.getElementById('camPort').value.trim(),
+        username: document.getElementById('camUsername').value.trim(),
+        password: document.getElementById('camPassword').value,
+        features: feats,
+        enabled:  _camEnabledState,
+      };
+
+      var btn = document.getElementById('saveCamBtn');
+      btn.disabled = true;
+      var msg = document.getElementById('camFormMsg');
+      var isEdit = !!id;
+      var url2 = isEdit ? '/cameras/' + encodeURIComponent(id) : '/cameras';
+      var method = isEdit ? 'PUT' : 'POST';
+      fetch(url2, { method: method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        btn.disabled = false;
+        if (d.success) {
+          msg.textContent = isEdit ? '✓ Caméra mise à jour' : '✓ Caméra ajoutée';
+          msg.className = 'text-[11px] min-h-[14px] text-green-400';
+          if (!isEdit) resetCamForm();
+          loadCameras();
+          setTimeout(function(){ msg.textContent = ''; }, 3000);
+        } else {
+          msg.textContent = d.error || 'Erreur';
+          msg.className = 'text-[11px] min-h-[14px] text-red-400';
+        }
+      })
+      .catch(function(){
+        btn.disabled = false;
+        msg.textContent = 'Erreur réseau';
+        msg.className = 'text-[11px] min-h-[14px] text-red-400';
+      });
+    }
+
+    function camToggle(id, enabled) {
+      fetch('/cameras/' + encodeURIComponent(id) + '/toggle', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({enabled: enabled})
+      }).then(function(){ loadCameras(); }).catch(function(){});
+    }
+
+    function deleteCam(id) {
+      var c = _camData.find(function(x){ return x.id === id; });
+      var name = c ? (c.label || id) : id;
+      if (!confirm('Supprimer la caméra "' + name + '" ?')) return;
+      fetch('/cameras/' + encodeURIComponent(id), {method:'DELETE'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if (d.success) { loadCameras(); resetCamForm(); } else alert(d.error); });
+    }
+
     // ── Session utilisateur ──
     fetch('/me').then(function(r){return r.json();}).then(function(d){
       var initials = d.username.slice(0,2).toUpperCase();
@@ -1630,7 +1996,9 @@
       document.getElementById('sidebarRole').textContent     = d.role === 'admin' ? 'Administrateur' : 'Utilisateur';
       if (d.role === 'admin') {
         document.getElementById('userMgmt').classList.remove('hidden');
+        document.getElementById('nav-cameras').classList.remove('hidden');
         loadUsers();
+        loadCamMeta();
       }
     });
 

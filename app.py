@@ -8,10 +8,10 @@ import functools
 import cv2
 from flask import Flask, render_template, Response, request, jsonify, session, redirect, url_for, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
-from face_recognizer import FaceRecognizer
 import analyzer
 import tracker
 import behavior
+from camera_manager import CameraManager, ROOMS, FEATURES
 
 app = Flask(__name__)
 os.makedirs("known_faces", exist_ok=True)
@@ -60,39 +60,13 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# ── Caméra & reconnaissance ──
-_lock = threading.Lock()
-_frame = None
-_results = []
-_recognizer = FaceRecognizer()
+# ── Initialisation caméras & modules ──
 analyzer.start()
 analyzer.set_on_result_callback(tracker.update_demographics)
 behavior.start()
 
-def _capture_loop():
-    global _frame, _results
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("[ERREUR] Caméra inaccessible")
-        return
-    idx = 0
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            time.sleep(0.05)
-            continue
-        with _lock:
-            _frame = frame.copy()
-        idx += 1
-        if idx % 4 == 0:
-            results = _recognizer.recognize(frame)
-            with _lock:
-                _results = results
-            analyzer.submit(frame, results)
-            tracker.update(results, frame, analyzer.get_results())
-            behavior.submit(frame, results)
+_cam_mgr = CameraManager()
 
-threading.Thread(target=_capture_loop, daemon=True).start()
 
 def _annotate(frame, results, beh_results=None):
     identified = sum(1 for (_, _, _, _, n) in results if n != "Inconnu")
@@ -109,7 +83,6 @@ def _annotate(frame, results, beh_results=None):
     (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
     cv2.rectangle(frame, (8, 8), (lw + 18, lh + 18), (20, 20, 20), cv2.FILLED)
     cv2.putText(frame, label, (13, lh + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 2)
-    # Overlay comportemental (coin supérieur droit)
     if beh_results:
         b = beh_results[0]
         btext = "Posture: {} ({}%)".format(b.get('vid_text', '?'), b.get('confidence', 0))
@@ -117,23 +90,23 @@ def _annotate(frame, results, beh_results=None):
         bx = frame.shape[1] - bw - 18
         cv2.rectangle(frame, (bx - 6, 8), (frame.shape[1] - 8, bh + 18), (25, 10, 40), cv2.FILLED)
         cv2.putText(frame, btext, (bx, bh + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.52, (200, 160, 255), 2)
-    # Landmarks MediaPipe (si activés)
     behavior.draw_landmarks_on(frame)
     return frame
 
-def _generate():
+
+def _generate(cam_id):
     while True:
-        with _lock:
-            frame = _frame.copy() if _frame is not None else None
-            results = list(_results)
+        frame = _cam_mgr.get_frame(cam_id)
         if frame is None:
             time.sleep(0.033)
             continue
+        results = _cam_mgr.get_results(cam_id)
         _annotate(frame, results, behavior.get_results())
         ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 78])
         if ok:
             yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n')
         time.sleep(0.033)
+
 
 # ════════════════════════════════════════════
 #  AUTH ROUTES
@@ -217,24 +190,25 @@ def index():
 @app.route('/video_feed')
 @login_required
 def video_feed():
-    return Response(_generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+    cam_id = request.args.get('cam_id') or _cam_mgr.first_id()
+    return Response(_generate(cam_id), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/capture_profile', methods=['POST'])
 @login_required
 def capture_profile():
-    data = request.get_json()
+    data  = request.get_json()
     name  = (data.get('name') or '').strip()
     step  = int(data.get('step', 1))
     total = int(data.get('total', 5))
+    cam_id = data.get('cam_id') or _cam_mgr.first_id()
     if not name:
         return jsonify({'error': 'Nom requis'}), 400
     if not 1 <= step <= total:
         return jsonify({'error': 'Étape invalide'}), 400
-    with _lock:
-        frame = _frame.copy() if _frame is not None else None
+    frame = _cam_mgr.get_frame(cam_id)
     if frame is None:
         return jsonify({'error': 'Caméra non disponible'}), 500
-    faces = _recognizer.detect_faces(frame)
+    faces = _cam_mgr.detect_faces(cam_id, frame)
     if len(faces) == 0:
         return jsonify({'error': 'Aucun visage détecté — rapprochez-vous'}), 400
     slug = name.lower().replace(' ', '_')
@@ -242,7 +216,7 @@ def capture_profile():
     os.makedirs(person_dir, exist_ok=True)
     cv2.imwrite(os.path.join(person_dir, 'profile_{}.jpg'.format(step)), frame)
     if step == total:
-        _recognizer.load_known_faces()
+        _cam_mgr.reload_all_faces()
         return jsonify({'success': True, 'done': True, 'name': name})
     return jsonify({'success': True, 'done': False, 'step': step})
 
@@ -262,8 +236,8 @@ def get_faces():
 @app.route('/stats')
 @login_required
 def stats():
-    with _lock:
-        results = list(_results)
+    cam_id  = request.args.get('cam_id') or _cam_mgr.first_id()
+    results = _cam_mgr.get_results(cam_id) or []
     identified = sum(1 for (_, _, _, _, n) in results if n != "Inconnu")
     unknown    = sum(1 for (_, _, _, _, n) in results if n == "Inconnu")
     return jsonify({'identified': identified, 'unknown': unknown, 'total': len(results)})
@@ -275,11 +249,11 @@ def threshold():
         try:
             value = float(request.json.get('value', 0.363))
             value = max(0.1, min(0.9, value))
-            _recognizer.threshold = value
+            _cam_mgr.set_threshold(value)
             return jsonify({'success': True, 'threshold': value})
         except (TypeError, ValueError):
             return jsonify({'error': 'Valeur invalide'}), 400
-    return jsonify({'threshold': _recognizer.threshold})
+    return jsonify({'threshold': _cam_mgr.get_threshold()})
 
 @app.route('/delete_face/<name>', methods=['DELETE'])
 @login_required
@@ -289,11 +263,11 @@ def delete_face(name):
     single = folder + '.jpg'
     if os.path.isdir(folder):
         shutil.rmtree(folder)
-        _recognizer.load_known_faces()
+        _cam_mgr.reload_all_faces()
         return jsonify({'success': True})
     if os.path.exists(single):
         os.remove(single)
-        _recognizer.load_known_faces()
+        _cam_mgr.reload_all_faces()
         return jsonify({'success': True})
     return jsonify({'error': 'Introuvable'}), 404
 
@@ -305,7 +279,6 @@ def analyze():
         'results': analyzer.get_results()
     })
 
-
 @app.route('/behavior')
 @login_required
 def behavior_route():
@@ -314,12 +287,10 @@ def behavior_route():
         'results': behavior.get_results()
     })
 
-
 @app.route('/behavior/history')
 @login_required
 def behavior_history():
     return jsonify(behavior.get_history())
-
 
 @app.route('/behavior/history/clear', methods=['POST'])
 @login_required
@@ -327,12 +298,10 @@ def behavior_history_clear():
     behavior.clear_history()
     return jsonify({'success': True})
 
-
 @app.route('/behavior/falls')
 @login_required
 def behavior_falls():
     return jsonify(behavior.get_fall_history())
-
 
 @app.route('/behavior/falls/clear', methods=['POST'])
 @login_required
@@ -340,12 +309,10 @@ def behavior_falls_clear():
     behavior.clear_fall_history()
     return jsonify({'success': True})
 
-
 @app.route('/behavior/settings', methods=['GET'])
 @login_required
 def behavior_settings_get():
     return jsonify(behavior.get_settings())
-
 
 @app.route('/behavior/settings', methods=['POST'])
 @login_required
@@ -354,20 +321,18 @@ def behavior_settings_post():
     behavior.apply_settings(data)
     return jsonify({'success': True, 'settings': behavior.get_settings()})
 
-
 @app.route('/analyze/force_all', methods=['POST'])
 @login_required
 def analyze_force_all():
-    with _lock:
-        frame   = _frame.copy() if _frame is not None else None
-        results = list(_results)
+    cam_id  = (request.get_json() or {}).get('cam_id') or _cam_mgr.first_id()
+    frame   = _cam_mgr.get_frame(cam_id)
+    results = _cam_mgr.get_results(cam_id) or []
     if frame is None:
         return jsonify({'error': 'Caméra non disponible'}), 500
     if not results:
         return jsonify({'error': 'Aucun visage dans le cadre'}), 400
     analyzer.submit_all(frame, results)
     return jsonify({'success': True, 'count': len(results)})
-
 
 @app.route('/analyze/all_results')
 @login_required
@@ -377,18 +342,15 @@ def analyze_all_results():
         'results':   analyzer.get_all_results()
     })
 
-
 @app.route('/history')
 @login_required
 def history():
     return jsonify(tracker.get_log())
 
-
 @app.route('/history/stats')
 @login_required
 def history_stats():
     return jsonify(tracker.get_stats())
-
 
 @app.route('/history/delete', methods=['POST'])
 @login_required
@@ -398,13 +360,11 @@ def history_delete():
     tracker.delete_entries(ids)
     return jsonify({'success': True, 'deleted': len(ids)})
 
-
 @app.route('/history/clear', methods=['POST'])
 @login_required
 def history_clear():
     tracker.clear()
     return jsonify({'success': True})
-
 
 @app.route('/face_photo/<slug>')
 @login_required
@@ -419,6 +379,63 @@ def face_photo(slug):
     if os.path.exists(single):
         return send_file(single, mimetype='image/jpeg')
     return '', 404
+
+# ════════════════════════════════════════════
+#  CAMERAS ADMIN ROUTES
+# ════════════════════════════════════════════
+
+@app.route('/cameras', methods=['GET'])
+@login_required
+def cameras_list():
+    return jsonify(_cam_mgr.list())
+
+@app.route('/cameras', methods=['POST'])
+@login_required
+@admin_required
+def cameras_add():
+    data = request.get_json() or {}
+    cam_id = _cam_mgr.add(data)
+    return jsonify({'success': True, 'id': cam_id})
+
+@app.route('/cameras/<cam_id>', methods=['GET'])
+@login_required
+def cameras_get(cam_id):
+    cam = _cam_mgr.get(cam_id, safe=True)
+    if cam is None:
+        return jsonify({'error': 'Caméra introuvable'}), 404
+    return jsonify(cam)
+
+@app.route('/cameras/<cam_id>', methods=['PUT'])
+@login_required
+@admin_required
+def cameras_update(cam_id):
+    data = request.get_json() or {}
+    if not _cam_mgr.update(cam_id, data):
+        return jsonify({'error': 'Caméra introuvable'}), 404
+    return jsonify({'success': True})
+
+@app.route('/cameras/<cam_id>', methods=['DELETE'])
+@login_required
+@admin_required
+def cameras_delete(cam_id):
+    if not _cam_mgr.delete(cam_id):
+        return jsonify({'error': 'Caméra introuvable'}), 404
+    return jsonify({'success': True})
+
+@app.route('/cameras/<cam_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def cameras_toggle(cam_id):
+    data    = request.get_json() or {}
+    enabled = bool(data.get('enabled', True))
+    if not _cam_mgr.toggle(cam_id, enabled):
+        return jsonify({'error': 'Caméra introuvable'}), 404
+    return jsonify({'success': True})
+
+@app.route('/cameras/meta')
+@login_required
+def cameras_meta():
+    return jsonify({'rooms': ROOMS, 'features': FEATURES})
 
 
 if __name__ == '__main__':

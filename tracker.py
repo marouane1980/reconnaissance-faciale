@@ -19,7 +19,7 @@ def _now_str():
     return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
-def update(results, frame=None, analyze_results=None):
+def update(results, frame=None, analyze_results=None, cam_label='Caméra 1'):
     """Appeler à chaque cycle de reconnaissance.
     results = [(x, y, w, h, name), ...]
     """
@@ -80,7 +80,7 @@ def update(results, frame=None, analyze_results=None):
                     'last_seen':  now,
                     'duration_s': 0,
                     'status':     'present',
-                    'camera':     'Caméra 1',
+                    'camera':     cam_label,
                     # Démographie (inconnus, remplie par DeepFace)
                     'age':        None,
                     'age_range':  None,
