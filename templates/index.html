@@ -90,11 +90,46 @@
     .gs-btn:not(.active):hover { background:rgba(255,255,255,.05); color:#94a3b8; }
 
     /* ── Plan 3D ── */
-    .plan-scene { perspective:1100px; }
-    .plan-tilt  { transform:rotateX(26deg); transform-origin:center 35%; transition:transform .4s ease; }
-    .room-block { transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
-    .room-block:hover { transform:translateY(-8px) scale(1.03);
-      box-shadow:0 24px 48px rgba(0,0,0,.8), 0 0 0 1px rgba(99,102,241,.4); }
+    .plan-scene { perspective: 900px; perspective-origin: 50% 20%; }
+    .plan-tilt-inner {
+      transform: rotateX(32deg) rotateZ(-2deg);
+      transform-origin: center 30%;
+      transform-style: preserve-3d;
+    }
+    .room-3d {
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform .22s ease, box-shadow .22s ease;
+    }
+    .room-3d.has-cams:hover {
+      transform: translateZ(20px) translateY(-4px);
+      box-shadow: 0 28px 56px rgba(0,0,0,.9), 0 0 0 1px rgba(99,102,241,.5) !important;
+    }
+    /* Bottom "wall" of each room block */
+    .room-3d::after {
+      content: '';
+      position: absolute;
+      left: 4px; right: -4px;
+      bottom: -14px;
+      height: 14px;
+      background: #0a0b14;
+      border-radius: 0 0 8px 4px;
+      transform: rotateX(-90deg) translateZ(-7px);
+      transform-origin: top center;
+    }
+    .room-3d.has-cams::after { background: #12132a; }
+    /* Right "wall" */
+    .room-3d::before {
+      content: '';
+      position: absolute;
+      top: 4px; bottom: -10px;
+      right: -14px;
+      width: 14px;
+      background: #0c0d1e;
+      border-radius: 0 8px 8px 0;
+      transform: rotateY(90deg) translateZ(-7px);
+      transform-origin: left center;
+    }
 
     /* ── Camera sidebar visibility row ── */
     .camvis-row { transition: background .12s ease, opacity .12s ease; }
@@ -298,18 +333,18 @@
           </div>
 
           <!-- ── Zones view ── -->
-          <div id="view-zone" class="hidden flex-1 overflow-auto p-5">
+          <div id="view-zone" class="flex-1 overflow-auto p-5" style="display:none">
             <div id="zoneCards" class="grid gap-5" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
               <div class="col-span-full text-center text-slate-600 italic text-xs py-20">Aucune zone configurée</div>
             </div>
           </div>
 
           <!-- ── Plan 3D view ── -->
-          <div id="view-plan" class="hidden flex-1 overflow-auto">
-            <div class="plan-scene min-h-full flex items-start justify-center px-8 pt-14 pb-16">
-              <div id="planBoard" class="plan-tilt w-full" style="max-width:860px">
-                <p class="text-center text-[10px] text-slate-600 mb-6 uppercase tracking-widest font-semibold">Plan de surveillance — cliquez une pièce pour filtrer</p>
-                <div id="planRooms" class="grid gap-3" style="grid-template-columns:repeat(3,1fr)">
+          <div id="view-plan" class="flex-1 overflow-auto" style="display:none">
+            <div id="planScene" class="plan-scene w-full min-h-full flex items-center justify-center py-16 px-8">
+              <div id="planBoard" class="plan-tilt-inner" style="width:100%;max-width:920px">
+                <p class="text-center text-[10px] text-slate-600 mb-8 uppercase tracking-widest font-semibold letter-spacing-widest">Plan de surveillance · Cliquez une pièce pour zoomer</p>
+                <div id="planRooms" class="grid gap-4" style="grid-template-columns:repeat(3,1fr)">
                   <div class="col-span-full text-center text-slate-600 italic text-xs py-20">Aucune zone configurée</div>
                 </div>
               </div>
@@ -2159,13 +2194,14 @@
 
     // ── View mode ──
     function setViewMode(mode) {
-      if (!['grid','zone','plan'].includes(mode)) mode = 'grid';
+      if (['grid','zone','plan'].indexOf(mode) < 0) mode = 'grid';
       _viewMode = mode;
 
-      document.getElementById('view-grid').style.display = mode === 'grid' ? '' : 'none';
-      document.getElementById('view-zone').style.display = mode === 'zone' ? '' : 'none';
-      document.getElementById('view-plan').style.display = mode === 'plan' ? '' : 'none';
-      document.getElementById('gridSizeBar').style.display = mode === 'grid' ? '' : 'none';
+      // Use explicit values — 'hidden' class on zone/plan would win over ''
+      document.getElementById('view-grid').style.display = mode === 'grid' ? 'block' : 'none';
+      document.getElementById('view-zone').style.display = mode === 'zone' ? 'block' : 'none';
+      document.getElementById('view-plan').style.display = mode === 'plan' ? 'block' : 'none';
+      document.getElementById('gridSizeBar').style.display = mode === 'grid' ? 'flex' : 'none';
 
       ['grid','zone','plan'].forEach(function(m) {
         var a = document.getElementById('vm-'    + m);
@@ -2332,54 +2368,94 @@
       if (!board) return;
       var roomMap  = _buildRoomMap();
       var allRooms = (_camMeta.rooms || []).concat(
-        Object.keys(roomMap).filter(function(r){ return (_camMeta.rooms||[]).indexOf(r)<0; })
+        Object.keys(roomMap).filter(function(r){ return (_camMeta.rooms||[]).indexOf(r) < 0; })
       );
       if (!allRooms.length) {
         board.innerHTML = '<div class="col-span-full text-center text-slate-600 italic text-xs py-20">Aucune zone configurée</div>';
         return;
       }
       board.innerHTML = '';
-      allRooms.forEach(function(room) {
-        var cams  = roomMap[room] || [];
+
+      // Room color palette for variety
+      var ROOM_COLORS = [
+        {bg:'#161728',border:'rgba(99,102,241,.45)',accent:'#6366f1',text:'#a5b4fc'},
+        {bg:'#121e1c',border:'rgba(16,185,129,.35)',accent:'#10b981',text:'#6ee7b7'},
+        {bg:'#1a1218',border:'rgba(168,85,247,.35)',accent:'#a855f7',text:'#d8b4fe'},
+        {bg:'#1a1710',border:'rgba(245,158,11,.3)', accent:'#f59e0b',text:'#fde68a'},
+        {bg:'#121821',border:'rgba(56,189,248,.3)', accent:'#38bdf8',text:'#bae6fd'},
+        {bg:'#1a1212',border:'rgba(239,68,68,.3)',  accent:'#ef4444',text:'#fca5a5'},
+      ];
+
+      allRooms.forEach(function(room, idx) {
+        var cams   = roomMap[room] || [];
         var hasCam = cams.length > 0;
-        var nConn = cams.filter(function(c){ return c.connected; }).length;
-        var block = document.createElement('div');
-        block.className = 'room-block rounded-2xl p-4 relative overflow-hidden min-h-[120px] flex flex-col justify-between' +
-          (hasCam
-            ? ' gradient-border cursor-pointer'
-            : ' border border-[#1e2035] opacity-30 cursor-default');
+        var nConn  = cams.filter(function(c){ return c.connected; }).length;
+        var pal    = ROOM_COLORS[idx % ROOM_COLORS.length];
+        var roomKey= room.replace(/\W+/g,'_');
+
+        var block  = document.createElement('div');
+        block.className = 'room-3d rounded-xl overflow-visible' + (hasCam ? ' has-cams cursor-pointer' : ' cursor-default');
+        block.style.cssText = [
+          'background:' + (hasCam ? pal.bg : '#0e0f1a'),
+          'border:1px solid ' + (hasCam ? pal.border : 'rgba(255,255,255,.05)'),
+          'box-shadow:' + (hasCam
+            ? '0 16px 32px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.04)'
+            : '0 8px 16px rgba(0,0,0,.5)'),
+          'opacity:' + (hasCam ? '1' : '.25'),
+          'min-height:130px',
+        ].join(';');
+
         if (hasCam) {
-          block.style.background = 'linear-gradient(135deg,#1e2035 0%,#13141f 55%,#1a1b30 100%)';
-          block.onclick = function() { filterByZone(room); };
-          block.title   = 'Cliquer pour filtrer les caméras de ' + room;
+          block.onclick = function(){ filterByZone(room); };
+          block.title   = 'Filtrer la vue sur ' + room;
         }
 
-        // Subtle grid pattern overlay
-        var patternSvg = hasCam ? '<div class="absolute inset-0 opacity-5" style="background-image:radial-gradient(circle,#6366f1 1px,transparent 1px);background-size:20px 20px;pointer-events:none"></div>' : '';
+        // Live feed thumb if camera connected
+        var firstConn = cams.find(function(c){ return c.connected; });
+        var previewHtml = '';
+        if (firstConn) {
+          previewHtml =
+            '<div class="relative rounded-lg overflow-hidden mb-2.5" style="aspect-ratio:16/9;background:#000">' +
+              '<img src="/video_feed?cam_id=' + encodeURIComponent(firstConn.id) + '"' +
+                   ' class="absolute inset-0 w-full h-full object-cover opacity-80">' +
+              '<div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>' +
+              '<div class="absolute bottom-1 left-1.5 flex items-center gap-1">' +
+                '<span class="w-1.5 h-1.5 rounded-full bg-red-500 live-dot inline-block"></span>' +
+                '<span class="text-[9px] font-bold text-white/70">LIVE</span>' +
+              '</div>' +
+            '</div>';
+        }
 
-        var camDots = cams.slice(0,5).map(function(c){
-          return '<div class="flex items-center gap-1.5">' +
-            '<span class="w-1.5 h-1.5 rounded-full flex-shrink-0 ' + (c.connected?'bg-green-400 live-dot':'bg-slate-600') + '"></span>' +
-            '<span class="text-[10px] text-slate-400 truncate" style="max-width:80px">' + escHtml(c.label) + '</span>' +
+        // Camera list
+        var camItems = cams.slice(0, 4).map(function(c){
+          var dot = c.connected ? 'bg-green-400 live-dot' : 'bg-slate-600';
+          return '<div class="flex items-center gap-1.5 py-0.5">' +
+            '<span class="w-1.5 h-1.5 rounded-full flex-shrink-0 ' + dot + '"></span>' +
+            '<span class="text-[10px] truncate" style="color:' + (c.connected ? '#cbd5e1' : '#475569') + ';max-width:88px">' + escHtml(c.label) + '</span>' +
           '</div>';
         }).join('');
 
-        var roomKey = room.replace(/\W+/g,'_');
-        block.innerHTML = patternSvg +
-          // Person count badge
-          (hasCam ? '<div class="absolute top-2 right-2 bg-indigo-600/25 border border-indigo-500/30 rounded-full px-2 py-0.5">' +
-            '<span id="pp-' + escHtml(roomKey) + '" class="text-[10px] font-bold text-indigo-300">0</span>' +
-            '<span class="text-[9px] text-indigo-500 ml-0.5">pers</span></div>' : '') +
-          '<div>' +
-            '<p class="text-xs font-bold ' + (hasCam?'text-slate-200':'text-slate-600') + '">' + escHtml(room) + '</p>' +
-            (hasCam
-              ? '<p class="text-[10px] text-slate-500 mt-0.5">' + nConn + '/' + cams.length + ' flux actif' + (nConn>1?'s':'') + '</p>'
-              : '<p class="text-[10px] text-slate-700 mt-0.5">Sans caméra</p>') +
-          '</div>' +
-          (hasCam
-            ? '<div class="flex flex-col gap-0.5 mt-2">' + camDots + '</div>' +
-              (cams.length > 5 ? '<p class="text-[9px] text-slate-600 mt-1">+' + (cams.length-5) + ' de plus</p>' : '')
-            : '');
+        block.innerHTML =
+          '<div class="p-3.5">' +
+            // Header
+            '<div class="flex items-start justify-between mb-2">' +
+              '<div>' +
+                '<p class="text-[11px] font-bold leading-none" style="color:' + (hasCam ? pal.text : '#334155') + '">' + escHtml(room) + '</p>' +
+                '<p class="text-[9px] mt-0.5" style="color:' + (hasCam ? 'rgba(148,163,184,.6)' : '#1e293b') + '">' +
+                  (hasCam ? nConn + '/' + cams.length + ' actif' + (nConn>1?'s':'') : 'Aucune caméra') +
+                '</p>' +
+              '</div>' +
+              (hasCam ? '<div class="flex items-center gap-1 rounded-full px-1.5 py-0.5" style="background:rgba(255,255,255,.06)">' +
+                '<span id="pp-' + escHtml(roomKey) + '" class="text-[10px] font-bold" style="color:' + pal.text + '">0</span>' +
+                '<span class="text-[9px]" style="color:rgba(148,163,184,.5)">p</span>' +
+              '</div>' : '') +
+            '</div>' +
+            // Preview
+            previewHtml +
+            // Camera list
+            (hasCam ? '<div class="space-y-0">' + camItems + (cams.length > 4 ? '<p class="text-[9px] mt-1" style="color:#475569">+' + (cams.length-4) + ' de plus</p>' : '') + '</div>' : '') +
+          '</div>';
+
         board.appendChild(block);
       });
     }
@@ -2466,6 +2542,7 @@
     }
 
     function _updateTileBadges() {
+      // Tile count badges (grid view)
       Object.keys(_tileStats).forEach(function(cid) {
         var el = document.getElementById('tile-cnt-' + cid);
         if (el) {
@@ -2473,18 +2550,22 @@
           el.textContent = n;
           el.classList.toggle('hidden', n === 0);
         }
-        // Update zone + plan person counters
-        var c = _dashCamData.find(function(x){ return x.id === cid; });
-        if (c) {
-          (c.rooms||[]).forEach(function(room){
-            var key = room.replace(/\W+/g,'_');
-            var elZ = document.getElementById('zp-' + key);
-            var elP = document.getElementById('pp-' + key);
-            // Accumulate (multiple cameras per room)
-            if (elZ) elZ.textContent = parseInt(elZ.textContent||0) + (_tileStats[cid].total||0);
-            if (elP) elP.textContent = parseInt(elP.textContent||0) + (_tileStats[cid].total||0);
-          });
-        }
+      });
+
+      // Zone / Plan person counters — build per-room totals first
+      var roomTotals = {};
+      _dashCamData.forEach(function(c) {
+        var n = (_tileStats[c.id] || {}).total || 0;
+        (c.rooms || []).forEach(function(room) {
+          var key = room.replace(/\W+/g,'_');
+          roomTotals[key] = (roomTotals[key] || 0) + n;
+        });
+      });
+      Object.keys(roomTotals).forEach(function(key) {
+        var elZ = document.getElementById('zp-' + key);
+        var elP = document.getElementById('pp-' + key);
+        if (elZ) elZ.textContent = roomTotals[key];
+        if (elP) elP.textContent = roomTotals[key];
       });
     }
 
