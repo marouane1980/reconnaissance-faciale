@@ -3,6 +3,7 @@ import re
 import json
 import time
 import shutil
+import base64
 import threading
 import functools
 import cv2
@@ -365,6 +366,32 @@ def history_delete():
 def history_clear():
     tracker.clear()
     return jsonify({'success': True})
+
+@app.route('/face_photos/<name>')
+@login_required
+def face_photos(name):
+    """Return all profile photos for a person as base64 data-URLs."""
+    slug   = re.sub(r'[^a-z0-9_]', '', name.lower().replace(' ', '_'))
+    folder = os.path.join('known_faces', slug)
+    photos = []
+    if os.path.isdir(folder):
+        for f in sorted(os.listdir(folder)):
+            if f.lower().endswith(('.jpg', '.jpeg', '.png')):
+                try:
+                    with open(os.path.join(folder, f), 'rb') as fh:
+                        photos.append('data:image/jpeg;base64,' + base64.b64encode(fh.read()).decode())
+                except Exception:
+                    pass
+    else:
+        single = os.path.join('known_faces', slug + '.jpg')
+        if os.path.exists(single):
+            try:
+                with open(single, 'rb') as fh:
+                    photos.append('data:image/jpeg;base64,' + base64.b64encode(fh.read()).decode())
+            except Exception:
+                pass
+    return jsonify(photos)
+
 
 @app.route('/face_photo/<slug>')
 @login_required

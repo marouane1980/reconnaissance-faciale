@@ -1,79 +1,129 @@
-"""Journalisation des apparitions de visages en temps réel."""
+"""Journalisation des apparitions de visages — persistance SQLite."""
 
 import time
 import threading
 import base64
+import sqlite3
 from datetime import datetime
 import cv2
 
-_lock       = threading.Lock()
-_log        = {}      # {id: entry_dict}
-_log_order  = []      # [id, ...] newest first
-_active     = {}      # {name: {id, last_seen_ts}}
-_id_counter = 0
-GONE_AFTER  = 4.0     # secondes avant de marquer "parti"
-MAX_LOG     = 500     # entrées conservées max
+_lock      = threading.Lock()
+_log       = {}     # {id: entry_dict}  in-memory cache (newest 500)
+_log_order = []     # [id, ...] newest first
+_active    = {}     # {name: {id, last_seen_ts}}
+GONE_AFTER = 4.0
+MAX_LOG    = 500
 
+DB_FILE = 'history.db'
+
+
+# ── Database ──────────────────────────────────────
+
+def _open_db():
+    c = sqlite3.connect(DB_FILE, check_same_thread=False)
+    c.row_factory = sqlite3.Row
+    c.execute('PRAGMA journal_mode=WAL')
+    return c
+
+_db = _open_db()
+
+
+def _init_db():
+    _db.execute('''CREATE TABLE IF NOT EXISTS tracker_log (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL DEFAULT '',
+        photo      TEXT,
+        first_seen TEXT,
+        last_seen  TEXT,
+        duration_s INTEGER DEFAULT 0,
+        status     TEXT    DEFAULT 'gone',
+        camera     TEXT,
+        age        INTEGER,
+        age_range  TEXT,
+        gender     TEXT,
+        face_size  TEXT
+    )''')
+    # On (re)start, mark any leftover 'present' rows from previous session
+    _db.execute("UPDATE tracker_log SET status='gone' WHERE status='present'")
+    _db.commit()
+
+
+def _load_db():
+    """Load the most recent MAX_LOG rows from DB into memory on startup."""
+    rows = _db.execute(
+        'SELECT * FROM tracker_log ORDER BY id DESC LIMIT ?', (MAX_LOG,)
+    ).fetchall()
+    for row in rows:
+        e = {k: row[k] for k in row.keys()}
+        _log[e['id']] = e
+        _log_order.append(e['id'])   # already DESC → newest first
+
+
+_init_db()
+_load_db()
+
+
+# ── Helpers ───────────────────────────────────────
 
 def _now_str():
     return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
+# ── Public API ────────────────────────────────────
+
 def update(results, frame=None, analyze_results=None, cam_label='Caméra 1'):
     """Appeler à chaque cycle de reconnaissance.
     results = [(x, y, w, h, name), ...]
     """
-    global _id_counter
     ts  = time.time()
     now = _now_str()
 
-    # Agrège par nom (plusieurs inconnus → un seul "Inconnu" actif)
     names = {}
     for (x, y, w, h, name) in results:
         if name not in names:
             names[name] = (int(x), int(y), int(w), int(h))
 
     with _lock:
-        # Marque parti les visages qui ont disparu (timeout)
+        # Mark gone (timeout)
         for name in list(_active.keys()):
             if ts - _active[name]['last_seen_ts'] > GONE_AFTER:
-                _log[_active[name]['id']]['status'] = 'gone'
+                eid   = _active[name]['id']
+                entry = _log.get(eid)
+                if entry:
+                    entry['status'] = 'gone'
+                    _db.execute(
+                        "UPDATE tracker_log SET status='gone', last_seen=?, duration_s=? WHERE id=?",
+                        (entry['last_seen'], entry['duration_s'], eid)
+                    )
+                    _db.commit()
                 del _active[name]
 
-        # Crée ou met à jour les entrées actives
+        # Create or refresh active entries
         for name, (x, y, w, h) in names.items():
             if name in _active:
-                info  = _active[name]
+                info             = _active[name]
                 info['last_seen_ts'] = ts
-                entry = _log[info['id']]
+                entry            = _log[info['id']]
                 entry['last_seen'] = now
                 start = datetime.strptime(entry['first_seen'], '%Y-%m-%d %H:%M:%S')
                 entry['duration_s'] = int((datetime.now() - start).total_seconds())
             else:
-                _id_counter += 1
-                eid   = _id_counter
                 photo = None
-
-                # Capture miniature live pour les personnes connues
                 if frame is not None and name != 'Inconnu':
                     try:
                         pad = int(max(w, h) * 0.15)
-                        x1 = max(0, x - pad)
-                        y1 = max(0, y - pad)
+                        x1 = max(0, x - pad);     y1 = max(0, y - pad)
                         x2 = min(frame.shape[1], x + w + pad)
                         y2 = min(frame.shape[0], y + h + pad)
                         crop = frame[y1:y2, x1:x2]
                         if crop.size > 0:
-                            ok, buf = cv2.imencode('.jpg', crop,
-                                                   [cv2.IMWRITE_JPEG_QUALITY, 82])
+                            ok, buf = cv2.imencode('.jpg', crop, [cv2.IMWRITE_JPEG_QUALITY, 82])
                             if ok and buf is not None:
-                                photo = ('data:image/jpeg;base64,'
-                                         + base64.b64encode(buf).decode())
+                                photo = 'data:image/jpeg;base64,' + base64.b64encode(buf).decode()
                     except Exception:
                         pass
 
-                _log[eid] = {
-                    'id':         eid,
+                entry = {
                     'name':       name,
                     'photo':      photo,
                     'first_seen': now,
@@ -81,52 +131,64 @@ def update(results, frame=None, analyze_results=None, cam_label='Caméra 1'):
                     'duration_s': 0,
                     'status':     'present',
                     'camera':     cam_label,
-                    # Démographie (inconnus, remplie par DeepFace)
                     'age':        None,
                     'age_range':  None,
                     'gender':     None,
                     'face_size':  None,
                 }
+                cur = _db.execute(
+                    '''INSERT INTO tracker_log
+                       (name,photo,first_seen,last_seen,duration_s,status,camera,
+                        age,age_range,gender,face_size)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?)''',
+                    (entry['name'], entry['photo'], entry['first_seen'], entry['last_seen'],
+                     entry['duration_s'], entry['status'], entry['camera'],
+                     entry['age'], entry['age_range'], entry['gender'], entry['face_size'])
+                )
+                _db.commit()
+                eid        = cur.lastrowid
+                entry['id'] = eid
+                _log[eid]  = entry
                 _log_order.insert(0, eid)
                 _active[name] = {'id': eid, 'last_seen_ts': ts}
 
-                # Limite la taille du journal
                 if len(_log_order) > MAX_LOG:
                     old = _log_order.pop()
                     _log.pop(old, None)
 
-        # Attache la démographie DeepFace à l'entrée "Inconnu" active
+        # Attach DeepFace demographics to 'Inconnu' active entry
         if analyze_results and 'Inconnu' in _active:
             eid = _active['Inconnu']['id']
             for ar in analyze_results:
                 if not ar.get('error'):
-                    e = _log[eid]
-                    if ar.get('face'):
-                        e['photo'] = ar['face']
-                    e.update({
-                        'age':       ar.get('age'),
-                        'age_range': ar.get('age_range'),
-                        'gender':    ar.get('gender'),
-                        'face_size': ar.get('face_size'),
-                    })
+                    e = _log.get(eid)
+                    if e:
+                        if ar.get('face'):
+                            e['photo'] = ar['face']
+                        e.update({
+                            'age':       ar.get('age'),
+                            'age_range': ar.get('age_range'),
+                            'gender':    ar.get('gender'),
+                            'face_size': ar.get('face_size'),
+                        })
+                        _db.execute(
+                            'UPDATE tracker_log SET photo=?,age=?,age_range=?,gender=?,face_size=? WHERE id=?',
+                            (e['photo'], e['age'], e['age_range'], e['gender'], e['face_size'], eid)
+                        )
+                        _db.commit()
                     break
 
 
 def update_demographics(analyze_results):
-    """Callback appelé par analyzer dès qu'un résultat DeepFace est prêt.
-    Met à jour l'entrée Inconnu la plus récente sans démographie, même si elle
-    n'est plus active (timeout dépassé).
-    """
+    """Callback from analyzer — update demographics for most recent unknown."""
     if not analyze_results:
         return
     with _lock:
         for ar in analyze_results:
             if ar.get('error'):
                 continue
-            # Priorité : entrée Inconnu encore active
             target_eid = _active.get('Inconnu', {}).get('id')
             if target_eid is None:
-                # Sinon : cherche la plus récente sans démographie
                 for eid in _log_order[:20]:
                     e = _log.get(eid)
                     if e and e['name'] == 'Inconnu' and e.get('age') is None:
@@ -142,19 +204,24 @@ def update_demographics(analyze_results):
                     'gender':    ar.get('gender'),
                     'face_size': ar.get('face_size'),
                 })
-            break  # un seul visage inconnu traité par appel
+                _db.execute(
+                    'UPDATE tracker_log SET photo=?,age=?,age_range=?,gender=?,face_size=? WHERE id=?',
+                    (e['photo'], e['age'], e['age_range'], e['gender'], e['face_size'], target_eid)
+                )
+                _db.commit()
+            break
 
 
 def get_log(limit=500):
     with _lock:
-        return [dict(_log[eid]) for eid in _log_order[:limit]]
+        return [dict(_log[eid]) for eid in _log_order[:limit] if eid in _log]
 
 
 def get_stats():
     with _lock:
-        total     = len(_log_order)
-        present   = sum(1 for e in _log.values() if e['status'] == 'present')
-        unknowns  = sum(1 for e in _log.values() if e['name'] == 'Inconnu')
+        total      = len(_log_order)
+        present    = sum(1 for e in _log.values() if e['status'] == 'present')
+        unknowns   = sum(1 for e in _log.values() if e['name'] == 'Inconnu')
         identified = total - unknowns
     return {'total': total, 'present': present,
             'identified': identified, 'unknown': unknowns}
@@ -169,12 +236,20 @@ def delete_entries(ids):
                 if info['id'] == eid:
                     del _active[name]
         _log_order[:] = [eid for eid in _log_order if eid not in ids_set]
+        if ids_set:
+            _db.execute(
+                'DELETE FROM tracker_log WHERE id IN ({})'.format(
+                    ','.join('?' * len(ids_set))),
+                list(ids_set)
+            )
+            _db.commit()
 
 
 def clear():
-    global _log, _log_order, _active, _id_counter
+    global _log, _log_order, _active
     with _lock:
-        _log        = {}
-        _log_order  = []
-        _active     = {}
-        _id_counter = 0
+        _log       = {}
+        _log_order = []
+        _active    = {}
+        _db.execute('DELETE FROM tracker_log')
+        _db.commit()

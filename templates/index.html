@@ -201,6 +201,19 @@
           <span class="nav-label text-sm font-medium text-slate-400">Historique</span>
           <span id="histNavBadge" class="ml-auto bg-green-950/60 text-green-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
         </button>
+        <button onclick="setNav('add')" id="nav-add" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
+          <i data-lucide="user-plus" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-sm font-medium text-slate-400">Ajouter personne</span>
+        </button>
+        <button onclick="setNav('people')" id="nav-people" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
+          <i data-lucide="users" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-sm font-medium text-slate-400">Personnes</span>
+          <span id="faceCountBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
+        </button>
+        <button onclick="setNav('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
+          <i data-lucide="sliders-horizontal" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-sm font-medium text-slate-400">Paramètres</span>
+        </button>
       </div>
 
       <!-- Analyse comportementale (pliable) -->
@@ -225,23 +238,15 @@
         <svg id="arr-sys" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div id="sec-sys" class="flex flex-col gap-1">
-        <button onclick="setNav('add')" id="nav-add" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="user-plus" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Ajouter personne</span>
-        </button>
-        <button onclick="setNav('people')" id="nav-people" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="users" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Personnes</span>
-          <span id="faceCountBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
-        </button>
-        <button onclick="setNav('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="sliders-horizontal" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Paramètres</span>
-        </button>
         <button onclick="setNav('cameras')" id="nav-cameras" class="nav-item hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
           <i data-lucide="camera" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
           <span class="nav-label text-sm font-medium text-slate-400">Caméras</span>
           <span id="camNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
+        </button>
+        <button onclick="setNav('users')" id="nav-users" class="nav-item hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
+          <i data-lucide="user-cog" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-sm font-medium text-slate-400">Utilisateurs</span>
+          <span id="userNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
         </button>
       </div>
 
@@ -402,6 +407,7 @@
                   <th class="py-3 px-3 w-10">
                     <input type="checkbox" id="selAllCb" class="hist-cb" onchange="toggleAll(this.checked)" title="Tout sélectionner">
                   </th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Caméra</th>
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider w-14">Photo</th>
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Nom</th>
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Statut</th>
@@ -412,7 +418,6 @@
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Âge</th>
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sexe</th>
                   <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Distance</th>
-                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Caméra</th>
                 </tr>
               </thead>
               <tbody id="histTbody">
@@ -453,6 +458,42 @@
               </thead>
               <tbody id="camTbody">
                 <tr><td colspan="8" class="text-center text-slate-600 italic py-14">Chargement...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Blank placeholder (settings / people / add) ── -->
+        <div id="main-blank" class="hidden flex-1 flex items-center justify-center">
+          <div class="text-center opacity-30">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="mx-auto mb-3 text-slate-600"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            <p class="text-xs text-slate-600">Sélectionnez une option dans le menu</p>
+          </div>
+        </div>
+
+        <!-- ── Users main view ── -->
+        <div id="main-users" class="hidden flex-1 flex flex-col overflow-hidden">
+          <div class="px-6 py-4 border-b border-[#1e2035] flex items-center gap-3 flex-shrink-0 bg-[#0f1020]">
+            <i data-lucide="user-cog" class="w-4 h-4 text-indigo-400 flex-shrink-0"></i>
+            <h2 class="text-sm font-semibold text-white">Gestion des utilisateurs</h2>
+            <span class="bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full" id="userTableCount">0</span>
+            <div class="ml-auto flex items-center gap-2">
+              <button onclick="loadUsers()" class="flex items-center gap-1.5 bg-[#1e2035] hover:bg-[#2a2b3d] text-slate-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Actualiser
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 overflow-auto">
+            <table class="w-full text-xs border-collapse" style="min-width:500px">
+              <thead class="sticky top-0 z-10 bg-[#0f1020] border-b border-[#1e2035]">
+                <tr>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Utilisateur</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Rôle</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="userTableTbody">
+                <tr><td colspan="3" class="text-center text-slate-600 italic py-14">Chargement...</td></tr>
               </tbody>
             </table>
           </div>
@@ -667,13 +708,21 @@
         <div id="panel-add" class="panel flex-1 overflow-y-auto p-5 gap-4">
           <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Nouveau profil</p>
 
+          <!-- Live camera preview for add panel -->
+          <div id="addCamPreviewWrap" class="relative rounded-xl overflow-hidden bg-[#0c0d15] border border-[#1e2035]" style="aspect-ratio:16/9;display:none">
+            <img id="addCamFeed" src="" class="absolute inset-0 w-full h-full object-cover">
+            <div class="absolute bottom-0 inset-x-0 p-2 bg-gradient-to-t from-black/70 to-transparent pointer-events-none">
+              <p id="addCamFeedLabel" class="text-white text-[10px] font-semibold truncate"></p>
+            </div>
+          </div>
+
           <div id="formStep">
             <div class="gradient-border rounded-xl p-4 flex flex-col gap-3">
               <label class="text-xs text-slate-500 font-medium">Nom complet</label>
               <input type="text" id="nameInput" placeholder="Ex : Marouane Mez" autocomplete="off"
                 class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-indigo-500 transition-colors placeholder-slate-600 w-full">
               <label class="text-xs text-slate-500 font-medium">Caméra de capture</label>
-              <select id="addCamSel"
+              <select id="addCamSel" onchange="onAddCamChange()"
                 class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 w-full">
                 <option value="">Caméra principale</option>
               </select>
@@ -721,6 +770,21 @@
           </ul>
         </div>
 
+        <!-- Modal: photos de profil -->
+        <div id="personModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" style="display:none!important">
+          <div class="bg-[#0f1020] border border-[#1e2035] rounded-2xl shadow-2xl w-80 max-h-[80vh] flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-[#1e2035] flex-shrink-0">
+              <p class="text-sm font-semibold text-white" id="personModalName">—</p>
+              <button onclick="closePersonModal()" class="text-slate-500 hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-white/5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div id="personModalPhotos" class="flex-1 overflow-y-auto p-4 grid grid-cols-2 gap-3">
+              <p class="col-span-2 text-xs text-slate-600 italic text-center py-8">Chargement...</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Panel: Paramètres -->
         <div id="panel-settings" class="panel flex-1 overflow-y-auto p-5 gap-5">
           <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Paramètres</p>
@@ -751,31 +815,6 @@
             <div id="thresholdMsg" class="text-xs rounded-lg min-h-[16px]"></div>
           </div>
 
-          <!-- Gestion utilisateurs (admin uniquement) -->
-          <div id="userMgmt" class="hidden gradient-border rounded-xl p-4 flex flex-col gap-4">
-            <div class="flex items-center justify-between">
-              <p class="text-xs font-semibold text-slate-400">Utilisateurs</p>
-              <span class="bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full" id="userCount">0</span>
-            </div>
-            <ul id="userList" class="flex flex-col gap-2"></ul>
-            <div class="border-t border-[#1e2035] pt-3 flex flex-col gap-2">
-              <p class="text-[11px] text-slate-500 font-medium">Nouvel utilisateur</p>
-              <input type="text" id="newUsername" placeholder="Nom d'utilisateur"
-                class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
-              <input type="password" id="newPassword" placeholder="Mot de passe"
-                class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
-              <select id="newRole"
-                class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500">
-                <option value="user">Utilisateur</option>
-                <option value="admin">Administrateur</option>
-              </select>
-              <button onclick="createUser()"
-                class="w-full bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-600/40 text-indigo-400 text-xs font-semibold rounded-lg py-2 transition-colors">
-                + Créer le compte
-              </button>
-              <div id="userMsg" class="text-xs rounded-lg min-h-[14px]"></div>
-            </div>
-          </div>
         </div>
 
         <!-- Panel: Posture & Gestes (live) -->
@@ -1001,6 +1040,27 @@
           </div>
         </div>
 
+        <!-- Panel: Utilisateurs (formulaire) -->
+        <div id="panel-users" class="panel flex-1 overflow-y-auto p-5 gap-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Nouvel utilisateur</p>
+          <div class="gradient-border rounded-xl p-4 flex flex-col gap-3">
+            <input type="text" id="newUsername" placeholder="Nom d'utilisateur"
+              class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
+            <input type="password" id="newPassword" placeholder="Mot de passe"
+              class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600">
+            <select id="newRole"
+              class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500">
+              <option value="user">Utilisateur</option>
+              <option value="admin">Administrateur</option>
+            </select>
+            <button onclick="createUser()"
+              class="w-full bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-600/40 text-indigo-400 text-xs font-semibold rounded-lg py-2 transition-colors">
+              + Créer le compte
+            </button>
+            <div id="userMsg" class="text-xs rounded-lg min-h-[14px]"></div>
+          </div>
+        </div>
+
         <!-- Panel: Historique comportemental (filtres) -->
         <div id="panel-behavhist" class="panel flex-1 overflow-y-auto p-5 gap-4">
           <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filtres</p>
@@ -1044,7 +1104,7 @@
     lucide.createIcons();
 
     // ── Navigation ──
-    var NAVS = ['dashboard','analyse','history','add','people','settings','behavior','behavhist','cameras'];
+    var NAVS = ['dashboard','analyse','history','add','people','settings','behavior','behavhist','cameras','users'];
     function setNav(name) {
       NAVS.forEach(function(n) {
         var btn   = document.getElementById('nav-' + n);
@@ -1055,13 +1115,20 @@
       var isHist      = (name === 'history');
       var isBehavHist = (name === 'behavhist');
       var isCameras   = (name === 'cameras');
-      var isTable     = isHist || isBehavHist || isCameras;
-      document.getElementById('main-default').style.display   = isTable ? 'none' : '';
-      document.getElementById('main-history').style.display   = isHist      ? 'flex' : 'none';
-      document.getElementById('main-behavhist').style.display = isBehavHist ? 'flex' : 'none';
-      document.getElementById('main-cameras').style.display   = isCameras   ? 'flex' : 'none';
+      var isUsers     = (name === 'users');
+      var isBlank     = (name === 'settings' || name === 'people' || name === 'add');
+      var showDefault = !isHist && !isBehavHist && !isCameras && !isUsers && !isBlank;
+
+      document.getElementById('main-default').style.display   = showDefault  ? ''     : 'none';
+      document.getElementById('main-history').style.display   = isHist       ? 'flex' : 'none';
+      document.getElementById('main-behavhist').style.display = isBehavHist  ? 'flex' : 'none';
+      document.getElementById('main-cameras').style.display   = isCameras    ? 'flex' : 'none';
+      document.getElementById('main-users').style.display     = isUsers      ? 'flex' : 'none';
+      document.getElementById('main-blank').style.display     = isBlank      ? 'flex' : 'none';
 
       if (name === 'people')    loadFaces();
+      if (name === 'add')       onAddCamChange();
+      if (name === 'users')     loadUsers();
       if (name === 'dashboard') {
         // Restore all enabled cameras in the grid
         _visibleCams = new Set(_dashCamData.map(function(c){ return c.id; }));
@@ -1188,15 +1255,16 @@
         if (!n) { list.innerHTML = '<li class="text-slate-600 text-xs text-center italic py-6">Aucune personne enregistrée</li>'; return; }
         faces.forEach(function(item) {
           var li = document.createElement('li');
-          li.className = 'flex items-center gap-3 bg-[#0c0d15] border border-[#1e2035] rounded-xl px-3 py-2.5 hover:border-[#2a2b3d] transition-colors';
+          li.className = 'flex items-center gap-3 bg-[#0c0d15] border border-[#1e2035] rounded-xl px-3 py-2.5 hover:border-indigo-500/40 transition-colors cursor-pointer';
+          li.onclick = function(e) { if (!e.target.closest('button')) openPersonModal(item.name); };
           var initials = item.name.split(' ').map(function(w) { return w[0]; }).join('').slice(0,2).toUpperCase();
           li.innerHTML =
             '<div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">' + initials + '</div>' +
             '<div class="flex-1 min-w-0">' +
               '<p class="text-sm font-medium text-slate-200 truncate">' + escHtml(item.name) + '</p>' +
-              '<p class="text-[10px] text-slate-600">' + item.profiles + ' profil' + (item.profiles > 1 ? 's' : '') + '</p>' +
+              '<p class="text-[10px] text-slate-600">' + item.profiles + ' profil' + (item.profiles > 1 ? 's' : '') + ' · cliquer pour photos</p>' +
             '</div>' +
-            '<button onclick="deleteFace(\'' + escHtml(item.name) + '\')" class="text-slate-600 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-950/30"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>';
+            '<button onclick="deleteFace(\'' + escHtml(item.name) + '\')" class="text-slate-600 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-950/30 flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>';
           list.appendChild(li);
         });
       });
@@ -1207,6 +1275,69 @@
       fetch('/delete_face/' + encodeURIComponent(name), { method: 'DELETE' })
       .then(function(r) { return r.json(); })
       .then(function(d) { if (d.success) loadFaces(); });
+    }
+
+    // ── Person photo modal ──
+    function openPersonModal(name) {
+      var modal = document.getElementById('personModal');
+      var nameEl = document.getElementById('personModalName');
+      var photos = document.getElementById('personModalPhotos');
+      nameEl.textContent = name;
+      photos.innerHTML = '<p class="col-span-2 text-xs text-slate-600 italic text-center py-8">Chargement...</p>';
+      modal.style.cssText = 'display:flex!important';
+      fetch('/face_photos/' + encodeURIComponent(name))
+        .then(function(r){ return r.json(); })
+        .then(function(list){
+          if (!list.length) {
+            photos.innerHTML = '<p class="col-span-2 text-xs text-slate-600 italic text-center py-8">Aucune photo trouvée</p>';
+            return;
+          }
+          photos.innerHTML = '';
+          list.forEach(function(src, i) {
+            var div = document.createElement('div');
+            div.className = 'rounded-xl overflow-hidden bg-[#0c0d15] border border-[#1e2035]';
+            div.innerHTML = '<img src="' + src + '" class="w-full object-cover" style="aspect-ratio:1/1">';
+            photos.appendChild(div);
+          });
+        })
+        .catch(function(){
+          photos.innerHTML = '<p class="col-span-2 text-xs text-red-400 text-center py-8">Erreur de chargement</p>';
+        });
+    }
+
+    function closePersonModal() {
+      document.getElementById('personModal').style.cssText = 'display:none!important';
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('personModal').addEventListener('click', function(e){
+      if (e.target === this) closePersonModal();
+    });
+
+    // ── Add panel camera preview ──
+    function onAddCamChange() {
+      var sel = document.getElementById('addCamSel');
+      var wrap = document.getElementById('addCamPreviewWrap');
+      var feedImg = document.getElementById('addCamFeed');
+      var lbl = document.getElementById('addCamFeedLabel');
+      if (!sel || !wrap) return;
+      var camId = sel.value;
+      if (!camId) {
+        // Use first connected cam
+        var first = (_dashCamData || []).find(function(c){ return c.connected; });
+        if (first) {
+          camId = first.id;
+          if (lbl) lbl.textContent = first.label || first.id;
+        } else {
+          wrap.style.display = 'none';
+          return;
+        }
+      } else {
+        var cam = (_dashCamData || []).find(function(c){ return c.id === camId; });
+        if (lbl) lbl.textContent = cam ? (cam.label || cam.id) : camId;
+      }
+      feedImg.src = '/video_feed?cam_id=' + encodeURIComponent(camId);
+      wrap.style.display = 'block';
     }
 
     // ── Threshold ──
@@ -1781,6 +1912,7 @@
         // Build full row via innerHTML (reliable, avoids insertAdjacentHTML on <tr>)
         tr.innerHTML =
           '<td class="py-2.5 px-3"><input type="checkbox" class="hist-cb" data-id="' + r.id + '"' + (isSel ? ' checked' : '') + '></td>' +
+          '<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap text-[11px]">' + escHtml(r.camera||'—') + '</td>' +
           '<td class="py-2.5 px-3">' + photoCell + '</td>' +
           '<td class="py-2.5 px-3 font-medium text-slate-200 whitespace-nowrap">' + escHtml(r.name) + '</td>' +
           '<td class="py-2.5 px-3">' + statusBadge + '</td>' +
@@ -1790,8 +1922,7 @@
           '<td class="py-2.5 px-3 text-slate-400 whitespace-nowrap">' + fmtDuration(r.duration_s) + '</td>' +
           '<td class="py-2.5 px-3">' + ageCell + '</td>' +
           '<td class="py-2.5 px-3">' + genderCell + '</td>' +
-          '<td class="py-2.5 px-3 text-slate-500 text-[10px] whitespace-nowrap">' + escHtml(r.face_size||'—') + '</td>' +
-          '<td class="py-2.5 px-3 text-slate-600 whitespace-nowrap">' + escHtml(r.camera||'—') + '</td>';
+          '<td class="py-2.5 px-3 text-slate-500 text-[10px] whitespace-nowrap">' + escHtml(r.face_size||'—') + '</td>';
 
         // Attach onchange after innerHTML (element now exists in DOM)
         var cb = tr.querySelector('.hist-cb');
@@ -2304,8 +2435,8 @@
       document.getElementById('sidebarRole').textContent     = d.role === 'admin' ? 'Administrateur' : 'Utilisateur';
       loadCamMeta();  // needed by all users for camera selectors
       if (d.role === 'admin') {
-        document.getElementById('userMgmt').classList.remove('hidden');
         document.getElementById('nav-cameras').classList.remove('hidden');
+        document.getElementById('nav-users').classList.remove('hidden');
         document.getElementById('dashAdminActions').classList.remove('hidden');
         loadUsers();
       }
@@ -2314,24 +2445,37 @@
     // ── Gestion utilisateurs ──
     function loadUsers() {
       fetch('/users').then(function(r){return r.json();}).then(function(users){
-        document.getElementById('userCount').textContent = users.length;
-        var list = document.getElementById('userList');
-        list.innerHTML = '';
-        users.forEach(function(u) {
-          var li = document.createElement('li');
-          li.className = 'flex items-center gap-2 bg-[#0c0d15] border border-[#1e2035] rounded-xl px-3 py-2';
-          var roleColor = u.role === 'admin' ? 'text-violet-400 bg-violet-950/40 border-violet-900/40' : 'text-slate-400 bg-[#1e2035] border-[#2a2b3d]';
-          li.innerHTML =
-            '<div class="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">' + u.username.slice(0,2).toUpperCase() + '</div>' +
-            '<div class="flex-1 min-w-0">' +
-              '<p class="text-xs font-medium text-slate-200 truncate">' + escHtml(u.username) + '</p>' +
-              '<span class="text-[10px] border rounded-full px-1.5 py-px ' + roleColor + '">' + (u.role === 'admin' ? 'Admin' : 'Utilisateur') + '</span>' +
-            '</div>' +
-            '<button onclick="deleteUser(\'' + escHtml(u.username) + '\')" class="text-slate-600 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-950/30 flex-shrink-0">' +
-              '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>' +
-            '</button>';
-          list.appendChild(li);
-        });
+        // Badge in nav
+        var navBadge = document.getElementById('userNavBadge');
+        if (navBadge) navBadge.textContent = users.length;
+        // Count in table header
+        var tblCount = document.getElementById('userTableCount');
+        if (tblCount) tblCount.textContent = users.length;
+
+        // Main table (main-users)
+        var tbody = document.getElementById('userTableTbody');
+        if (tbody) {
+          if (!users.length) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-slate-600 italic py-14">Aucun utilisateur</td></tr>';
+          } else {
+            tbody.innerHTML = '';
+            users.forEach(function(u) {
+              var tr = document.createElement('tr');
+              tr.style.borderBottom = '1px solid #1e2035';
+              var roleColor = u.role === 'admin' ? 'text-violet-400 bg-violet-950/40 border-violet-900/40' : 'text-slate-400 bg-[#1e2035] border-[#2a2b3d]';
+              tr.innerHTML =
+                '<td class="py-3 px-4">' +
+                  '<div class="flex items-center gap-2.5">' +
+                    '<div class="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">' + u.username.slice(0,2).toUpperCase() + '</div>' +
+                    '<span class="text-sm font-medium text-slate-200">' + escHtml(u.username) + '</span>' +
+                  '</div>' +
+                '</td>' +
+                '<td class="py-3 px-4"><span class="text-[11px] border rounded-full px-2 py-0.5 ' + roleColor + '">' + (u.role === 'admin' ? 'Administrateur' : 'Utilisateur') + '</span></td>' +
+                '<td class="py-3 px-4"><button onclick="deleteUser(\'' + escHtml(u.username) + '\')" class="text-slate-600 hover:text-red-400 transition-colors text-xs font-medium px-2 py-1 rounded hover:bg-red-950/20">Supprimer</button></td>';
+              tbody.appendChild(tr);
+            });
+          }
+        }
       });
     }
 
