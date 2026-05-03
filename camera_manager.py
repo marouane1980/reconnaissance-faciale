@@ -30,7 +30,7 @@ def _default_cameras():
     return [{
         'id':       'cam_0',
         'label':    'Caméra 1',
-        'room':     'Entrée',
+        'rooms':    ['Entrée'],
         'url':      '0',
         'ip':       '',
         'port':     '',
@@ -49,7 +49,13 @@ def _load_raw():
             json.dump({'cameras': cams}, f, indent=2, ensure_ascii=False)
         return cams
     with open(CAMERAS_FILE, encoding='utf-8') as f:
-        return json.load(f).get('cameras', [])
+        cams = json.load(f).get('cameras', [])
+    # Backward compat: convert old 'room' (str) to 'rooms' (list)
+    for cam in cams:
+        if 'room' in cam and 'rooms' not in cam:
+            cam['rooms'] = [cam.pop('room')] if cam['room'] else []
+        cam.setdefault('rooms', [])
+    return cams
 
 
 def _save_raw(cameras):

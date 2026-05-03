@@ -76,6 +76,29 @@
       opacity: 1;
       pointer-events: all;
     }
+
+    /* ── Camera grid ── */
+    .cam-tile { transition: transform .18s ease, box-shadow .18s ease; }
+    .cam-tile:hover { transform: scale(1.012); box-shadow: 0 0 0 2px rgba(99,102,241,.5); z-index:2; }
+
+    /* ── View-mode & grid-size buttons ── */
+    .vm-btn  { background:transparent; color:#475569; cursor:pointer; border-radius:.5rem; transition:all .15s ease; }
+    .vm-btn.active  { background:rgba(99,102,241,.22); color:#818cf8; }
+    .vm-btn:not(.active):hover { background:rgba(255,255,255,.06); color:#94a3b8; }
+    .gs-btn  { background:transparent; color:#475569; cursor:pointer; border:1px solid transparent; border-radius:.4rem; transition:all .15s ease; }
+    .gs-btn.active  { background:rgba(99,102,241,.18); color:#818cf8; border-color:rgba(99,102,241,.3); }
+    .gs-btn:not(.active):hover { background:rgba(255,255,255,.05); color:#94a3b8; }
+
+    /* ── Plan 3D ── */
+    .plan-scene { perspective:1100px; }
+    .plan-tilt  { transform:rotateX(26deg); transform-origin:center 35%; transition:transform .4s ease; }
+    .room-block { transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+    .room-block:hover { transform:translateY(-8px) scale(1.03);
+      box-shadow:0 24px 48px rgba(0,0,0,.8), 0 0 0 1px rgba(99,102,241,.4); }
+
+    /* ── Camera sidebar visibility row ── */
+    .camvis-row { transition: background .12s ease, opacity .12s ease; }
+    .camvis-row.hidden-cam { opacity:.38; }
   </style>
 </head>
 <body class="bg-[#0c0d15] text-slate-300 h-screen flex overflow-hidden">
@@ -98,6 +121,27 @@
 
     <!-- Nav -->
     <nav class="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
+
+      <!-- Vue mode switcher (dashboard only) -->
+      <div class="flex gap-0.5 bg-[#0c0d15] rounded-xl p-1 mb-3 flex-shrink-0">
+        <button onclick="setViewMode('grid')" id="sb-vm-grid" title="Grille caméras"
+          class="vm-btn active flex-1 text-[11px] font-semibold py-1.5 rounded-lg">⊞ Grille</button>
+        <button onclick="setViewMode('zone')" id="sb-vm-zone" title="Vue par zone"
+          class="vm-btn flex-1 text-[11px] font-semibold py-1.5 rounded-lg">⊡ Zones</button>
+        <button onclick="setViewMode('plan')" id="sb-vm-plan" title="Plan 3D"
+          class="vm-btn flex-1 text-[11px] font-semibold py-1.5 rounded-lg">⬡ Plan</button>
+      </div>
+
+      <!-- Caméras visibles -->
+      <button onclick="toggleSec('camvis')" class="flex items-center justify-between w-full px-2 mb-1 group">
+        <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest group-hover:text-slate-400 transition-colors">Caméras visibles</p>
+        <svg id="arr-camvis" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="sec-camvis" class="flex flex-col gap-0.5 mb-3">
+        <div id="camVisList">
+          <p class="text-[10px] text-slate-600 italic px-2">Chargement...</p>
+        </div>
+      </div>
 
       <!-- Vue d'ensemble (fixe) -->
       <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest px-2 mb-2">Vue d'ensemble</p>
@@ -216,49 +260,59 @@
       <!-- ── Center ── -->
       <main class="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        <!-- ── Default view: stats + video ── -->
-        <div id="main-default" class="flex-1 flex flex-col p-5 gap-4 overflow-hidden">
+        <!-- ── Dashboard: camera grid / zones / plan ── -->
+        <div id="main-default" class="flex-1 flex flex-col overflow-hidden">
 
-          <!-- Stat cards -->
-          <div class="grid grid-cols-3 gap-4 flex-shrink-0">
-            <div class="stat-card gradient-border rounded-2xl p-4">
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total détectés</span>
-                <div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                  <i data-lucide="scan" class="w-3.5 h-3.5 text-indigo-400"></i>
-                </div>
-              </div>
-              <p class="text-3xl font-bold text-white" id="statTotal">0</p>
-              <p class="text-[11px] text-slate-600 mt-1">visages dans le cadre</p>
+          <!-- Sub-header: view controls -->
+          <div class="px-4 py-2.5 border-b border-[#1e2035] bg-[#0f1020] flex items-center gap-2.5 flex-shrink-0">
+            <div class="flex gap-0.5 bg-[#0c0d15] rounded-xl p-0.5">
+              <button onclick="setViewMode('grid')" id="vm-grid" class="vm-btn active text-[11px] font-semibold px-3 py-1.5 rounded-[.6rem]">⊞ Grille</button>
+              <button onclick="setViewMode('zone')" id="vm-zone" class="vm-btn text-[11px] font-semibold px-3 py-1.5 rounded-[.6rem]">⊡ Zones</button>
+              <button onclick="setViewMode('plan')" id="vm-plan" class="vm-btn text-[11px] font-semibold px-3 py-1.5 rounded-[.6rem]">⬡ Plan 3D</button>
             </div>
-            <div class="stat-card gradient-border rounded-2xl p-4">
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Identifiés</span>
-                <div class="w-7 h-7 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <i data-lucide="user-check" class="w-3.5 h-3.5 text-green-400"></i>
-                </div>
-              </div>
-              <p class="text-3xl font-bold text-green-400" id="statIdentified">0</p>
-              <p class="text-[11px] text-slate-600 mt-1">personnes reconnues</p>
+
+            <!-- Grid size (grid mode only) -->
+            <div id="gridSizeBar" class="flex items-center gap-1">
+              <span class="text-[9px] text-slate-600 font-semibold uppercase tracking-widest mr-0.5">Cols</span>
+              <button onclick="setGridCols(0)" id="gs-auto" class="gs-btn active text-[10px] font-semibold px-2 py-1">Auto</button>
+              <button onclick="setGridCols(1)" id="gs-1"    class="gs-btn text-[10px] font-semibold px-2 py-1">1</button>
+              <button onclick="setGridCols(2)" id="gs-2"    class="gs-btn text-[10px] font-semibold px-2 py-1">2</button>
+              <button onclick="setGridCols(3)" id="gs-3"    class="gs-btn text-[10px] font-semibold px-2 py-1">3</button>
+              <button onclick="setGridCols(4)" id="gs-4"    class="gs-btn text-[10px] font-semibold px-2 py-1">4</button>
             </div>
-            <div class="stat-card gradient-border rounded-2xl p-4">
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Inconnus</span>
-                <div class="w-7 h-7 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <i data-lucide="user-x" class="w-3.5 h-3.5 text-red-400"></i>
-                </div>
-              </div>
-              <p class="text-3xl font-bold text-red-400" id="statUnknown">0</p>
-              <p class="text-[11px] text-slate-600 mt-1">non enregistrés</p>
+
+            <div class="ml-auto flex items-center gap-3 text-[11px] text-slate-500">
+              <span><span id="dashVisCount" class="font-semibold text-slate-300">0</span> flux</span>
+              <span class="text-[#2a2b3d]">|</span>
+              <span><span id="dashTotalPersons" class="font-semibold text-indigo-300">0</span> personne(s)</span>
             </div>
           </div>
 
-          <!-- Video -->
-          <div class="flex-1 gradient-border rounded-2xl overflow-hidden flex items-center justify-center bg-black min-h-0 relative">
-            <img src="/video_feed" alt="Flux vidéo" class="w-full h-full object-contain block">
-            <div class="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-2.5 py-1">
-              <div class="w-1.5 h-1.5 rounded-full bg-red-500 live-dot"></div>
-              <span class="text-[10px] font-semibold text-white/80">LIVE</span>
+          <!-- ── Grille view ── -->
+          <div id="view-grid" class="flex-1 overflow-auto p-4">
+            <div id="camGrid" class="grid gap-3">
+              <div class="col-span-full text-center text-slate-600 italic text-xs py-20">
+                Aucune caméra active — configurez vos caméras dans Système › Caméras
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Zones view ── -->
+          <div id="view-zone" class="hidden flex-1 overflow-auto p-5">
+            <div id="zoneCards" class="grid gap-5" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
+              <div class="col-span-full text-center text-slate-600 italic text-xs py-20">Aucune zone configurée</div>
+            </div>
+          </div>
+
+          <!-- ── Plan 3D view ── -->
+          <div id="view-plan" class="hidden flex-1 overflow-auto">
+            <div class="plan-scene min-h-full flex items-start justify-center px-8 pt-14 pb-16">
+              <div id="planBoard" class="plan-tilt w-full" style="max-width:860px">
+                <p class="text-center text-[10px] text-slate-600 mb-6 uppercase tracking-widest font-semibold">Plan de surveillance — cliquez une pièce pour filtrer</p>
+                <div id="planRooms" class="grid gap-3" style="grid-template-columns:repeat(3,1fr)">
+                  <div class="col-span-full text-center text-slate-600 italic text-xs py-20">Aucune zone configurée</div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -412,49 +466,49 @@
       <!-- ── Right Panel ── -->
       <aside class="w-72 border-l border-[#1e2035] bg-[#0f1020] overflow-hidden flex flex-col">
 
-        <!-- Panel: Dashboard -->
+        <!-- Panel: Dashboard (flux actifs) -->
         <div id="panel-dashboard" class="panel active flex-1 overflow-y-auto p-5 gap-4">
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vue d'ensemble</p>
+          <div class="flex items-center justify-between flex-shrink-0">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Flux de surveillance</p>
+            <span id="dashConnectedBadge" class="bg-green-950/50 text-green-400 border border-green-900/40 text-[10px] font-bold px-2 py-0.5 rounded-full">0/0</span>
+          </div>
 
-          <div class="gradient-border rounded-xl p-4">
-            <div class="flex items-center gap-3 mb-4">
-              <div class="w-8 h-8 rounded-lg bg-indigo-500/15 flex items-center justify-center">
-                <i data-lucide="activity" class="w-4 h-4 text-indigo-400"></i>
-              </div>
-              <div>
-                <p class="text-sm font-semibold text-white">Reconnaissance</p>
-                <p class="text-[11px] text-slate-500">Temps réel</p>
-              </div>
+          <!-- Global live stats -->
+          <div class="gradient-border rounded-xl p-4 flex flex-col gap-2.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-500">Personnes détectées</span>
+              <span class="font-bold text-white" id="db-persons">0</span>
             </div>
-            <div class="space-y-3">
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-slate-500">Total détectés</span>
-                <span class="text-xs font-bold text-white" id="ov-total">0</span>
-              </div>
-              <div class="h-px bg-[#1e2035]"></div>
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-slate-500">Identifiés</span>
-                <span class="text-xs font-bold text-green-400" id="ov-identified">0</span>
-              </div>
-              <div class="h-px bg-[#1e2035]"></div>
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-slate-500">Inconnus</span>
-                <span class="text-xs font-bold text-red-400" id="ov-unknown">0</span>
-              </div>
-              <div class="h-px bg-[#1e2035]"></div>
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-slate-500">Taux de reconnaissance</span>
-                <span class="text-xs font-bold text-indigo-400" id="ov-rate">— %</span>
-              </div>
+            <div class="h-px bg-[#1e2035]"></div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-500">Identifiées</span>
+              <span class="font-bold text-green-400" id="db-identified">0</span>
+            </div>
+            <div class="h-px bg-[#1e2035]"></div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-500">Inconnus</span>
+              <span class="font-bold text-red-400" id="db-unknown">0</span>
+            </div>
+            <div class="h-px bg-[#1e2035]"></div>
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-500">Taux d'identification</span>
+              <span class="font-bold text-indigo-400" id="db-rate">— %</span>
             </div>
           </div>
 
-          <div class="gradient-border rounded-xl p-4">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Personnes enregistrées</p>
-            <p class="text-2xl font-bold text-white" id="ov-registered">0</p>
-            <p class="text-[11px] text-slate-600 mt-1">profils dans la base</p>
-            <button onclick="setNav('add')" class="mt-3 w-full bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-600/40 text-indigo-400 text-xs font-semibold rounded-lg py-2 transition-colors">
-              + Ajouter une personne
+          <!-- Per-camera status -->
+          <div>
+            <p class="text-[11px] text-slate-500 font-semibold uppercase tracking-wider mb-2">État des caméras</p>
+            <div id="dashCamList" class="flex flex-col gap-2">
+              <p class="text-[11px] text-slate-600 italic">Chargement...</p>
+            </div>
+          </div>
+
+          <!-- Admin actions -->
+          <div id="dashAdminActions" class="hidden flex flex-col gap-2">
+            <button onclick="setNav('cameras')"
+              class="w-full flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-600/40 text-indigo-400 text-xs font-semibold rounded-lg py-2.5 transition-colors">
+              <i data-lucide="settings-2" class="w-3.5 h-3.5"></i> Gérer les caméras
             </button>
           </div>
         </div>
@@ -782,9 +836,10 @@
             </div>
 
             <div>
-              <label class="text-[11px] text-slate-500 mb-1 block">Pièce</label>
-              <select id="camRoom" class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500">
-              </select>
+              <label class="text-[11px] text-slate-500 mb-1 block">Zones couvertes <span class="text-slate-600">(plusieurs possibles)</span></label>
+              <div id="camRoomsChecks" class="flex flex-col gap-1 max-h-36 overflow-y-auto bg-[#0c0d15] border border-[#2a2b3d] rounded-lg p-2">
+                <p class="text-[10px] text-slate-600 italic">Chargement des zones...</p>
+              </div>
             </div>
 
             <div>
@@ -935,7 +990,8 @@
       document.getElementById('main-behavhist').style.display = isBehavHist ? 'flex' : 'none';
       document.getElementById('main-cameras').style.display   = isCameras   ? 'flex' : 'none';
 
-      if (name === 'people' || name === 'dashboard') loadFaces();
+      if (name === 'people')    loadFaces();
+      if (name === 'dashboard') { loadFaces(); setViewMode(_viewMode); }
       if (name === 'history')   loadHistory();
       if (name === 'behavhist') loadBehaviorHistory();
       if (name === 'cameras')   loadCameras();
@@ -1083,24 +1139,22 @@
       document.getElementById('thresholdVal').textContent=d.threshold.toFixed(2);
     });
 
-    // ── Stats polling ──
+    // ── Stats: aggregate across all visible cameras ──
     function refreshStats() {
-      fetch('/stats').then(function(r){return r.json();}).then(function(d){
-        document.getElementById('statTotal').textContent      = d.total;
-        document.getElementById('statIdentified').textContent = d.identified;
-        document.getElementById('statUnknown').textContent    = d.unknown;
-        document.getElementById('hdrTotal').textContent       = d.total + ' total';
-        document.getElementById('hdrIdentified').textContent  = d.identified + ' identifié(s)';
-        document.getElementById('hdrUnknown').textContent     = d.unknown + ' inconnu(s)';
-        document.getElementById('ov-total').textContent       = d.total;
-        document.getElementById('ov-identified').textContent  = d.identified;
-        document.getElementById('ov-unknown').textContent     = d.unknown;
-        var rate = d.total > 0 ? Math.round(d.identified / d.total * 100) : 0;
-        document.getElementById('ov-rate').textContent        = (d.total > 0 ? rate + ' %' : '— %');
+      var total = 0, identified = 0, unknown = 0;
+      Object.values(_tileStats).forEach(function(d){
+        total      += d.total      || 0;
+        identified += d.identified || 0;
+        unknown    += d.unknown    || 0;
       });
+      var hT = document.getElementById('hdrTotal');
+      var hI = document.getElementById('hdrIdentified');
+      var hU = document.getElementById('hdrUnknown');
+      if (hT) hT.textContent = total + ' total';
+      if (hI) hI.textContent = identified + ' identifié(s)';
+      if (hU) hU.textContent = unknown + ' inconnu(s)';
     }
-    setInterval(refreshStats, 1000);
-    refreshStats();
+    setInterval(refreshStats, 1500);
 
     // ══════════════════════════════════════════
     //  ANALYSE IA — TOUTES PERSONNES
@@ -1786,23 +1840,56 @@
     function loadCamMeta() {
       fetch('/cameras/meta').then(function(r){return r.json();}).then(function(d){
         _camMeta = d;
-        var sel = document.getElementById('camRoom');
-        sel.innerHTML = '';
-        (d.rooms || []).forEach(function(room){
-          var opt = document.createElement('option');
-          opt.value = room; opt.textContent = room;
-          sel.appendChild(opt);
-        });
+        _fillRoomChecks(d.rooms || []);
       }).catch(function(){});
+    }
+
+    function _fillRoomChecks(rooms) {
+      var container = document.getElementById('camRoomsChecks');
+      if (!container) return;
+      var current = _getCheckedRooms();
+      container.innerHTML = '';
+      rooms.forEach(function(room){
+        var label = document.createElement('label');
+        label.className = 'flex items-center gap-2 text-xs text-slate-400 cursor-pointer py-0.5 px-1 rounded hover:bg-white/5 transition-colors';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'cam-room-cb accent-indigo-500 w-3 h-3 flex-shrink-0';
+        cb.value = room;
+        if (current.indexOf(room) >= 0) cb.checked = true;
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(' ' + room));
+        container.appendChild(label);
+      });
+    }
+
+    function _getCheckedRooms() {
+      return Array.from(document.querySelectorAll('.cam-room-cb:checked')).map(function(cb){ return cb.value; });
     }
 
     function loadCameras() {
       fetch('/cameras').then(function(r){return r.json();}).then(function(d){
         _camData = d;
-        document.getElementById('camTableCount').textContent = d.length;
-        document.getElementById('camNavBadge').textContent   = d.length;
+        var nb = document.getElementById('camTableCount');
+        if (nb) nb.textContent = d.length;
+        document.getElementById('camNavBadge').textContent = d.length;
         renderCameras(d);
+        // Refresh dashboard data
+        _refreshDashFromCams(d);
       }).catch(function(){});
+    }
+
+    function _refreshDashFromCams(cams) {
+      _dashCamData = (cams || []).filter(function(c){ return c.enabled !== false; });
+      // Add newly enabled cameras to visible set automatically
+      _dashCamData.forEach(function(c){ _visibleCams.add(c.id); });
+      // Remove deleted cameras
+      Array.from(_visibleCams).forEach(function(id){
+        if (!_dashCamData.find(function(c){ return c.id === id; })) _visibleCams.delete(id);
+      });
+      updateCamVisibilityList();
+      refreshDashCamList();
+      if (document.getElementById('panel-dashboard').classList.contains('active')) setViewMode(_viewMode);
     }
 
     function renderCameras(cams) {
@@ -1829,6 +1916,7 @@
 
         var urlDisplay = c.ip ? (c.ip + (c.port ? ':' + c.port : '')) : escHtml(c.url || '0');
         var proto = c.protocol || 'webcam';
+        var roomsDisplay = (c.rooms || (c.room ? [c.room] : [])).join(', ') || '—';
 
         var enabledBtn = c.enabled
           ? '<button onclick="camToggle(\'' + c.id + '\',false)" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-green-950/40 text-green-400 border border-green-900/40 hover:bg-red-950/40 hover:text-red-400 hover:border-red-900/40 transition-colors">ON</button>'
@@ -1836,7 +1924,7 @@
 
         tr.innerHTML =
           '<td class="py-2.5 px-4 font-medium text-slate-200 whitespace-nowrap">' + escHtml(c.label || c.id) + '</td>' +
-          '<td class="py-2.5 px-4 text-slate-400 whitespace-nowrap">' + escHtml(c.room || '—') + '</td>' +
+          '<td class="py-2.5 px-4 text-slate-400 whitespace-nowrap">' + escHtml(roomsDisplay) + '</td>' +
           '<td class="py-2.5 px-4 text-slate-500 whitespace-nowrap font-mono text-[11px]">' + escHtml(proto) + '</td>' +
           '<td class="py-2.5 px-4 text-slate-500 whitespace-nowrap font-mono text-[11px]">' + urlDisplay + '</td>' +
           '<td class="py-2.5 px-4">' + (feats || '<span class="text-slate-600">—</span>') + '</td>' +
@@ -1884,9 +1972,8 @@
       document.getElementById('camEnabledBtn').className    = 'px-3 py-1 rounded-lg text-[11px] font-semibold border transition-colors bg-green-950/40 text-green-400 border-green-900/50';
       document.getElementById('camFormTitle').textContent   = 'Nouvelle caméra';
       document.getElementById('camFormMsg').textContent     = '';
+      document.querySelectorAll('.cam-room-cb').forEach(function(cb){ cb.checked = false; });
       onCamProtocolChange();
-      if (_camMeta.rooms && _camMeta.rooms.length)
-        document.getElementById('camRoom').value = _camMeta.rooms[0];
     }
 
     function openAddCam() {
@@ -1909,6 +1996,10 @@
       document.getElementById('camPassword').value  = '';
       document.getElementById('camFeatFace').checked  = (c.features || []).indexOf('face_recognition')  >= 0;
       document.getElementById('camFeatBehav').checked = (c.features || []).indexOf('behavior_analysis') >= 0;
+      var camRooms = c.rooms || (c.room ? [c.room] : []);
+      document.querySelectorAll('.cam-room-cb').forEach(function(cb){
+        cb.checked = camRooms.indexOf(cb.value) >= 0;
+      });
       _camEnabledState = !!c.enabled;
       document.getElementById('camEnabled').value = _camEnabledState ? '1' : '0';
       document.getElementById('camEnabledBtn').textContent = _camEnabledState ? 'OUI' : 'NON';
@@ -1932,7 +2023,7 @@
 
       var data = {
         label:    document.getElementById('camLabel').value.trim(),
-        room:     document.getElementById('camRoom').value,
+        rooms:    _getCheckedRooms(),
         protocol: proto,
         url:      url,
         ip:       document.getElementById('camIp').value.trim(),
@@ -1997,6 +2088,7 @@
       if (d.role === 'admin') {
         document.getElementById('userMgmt').classList.remove('hidden');
         document.getElementById('nav-cameras').classList.remove('hidden');
+        document.getElementById('dashAdminActions').classList.remove('hidden');
         loadUsers();
         loadCamMeta();
       }
@@ -2055,6 +2147,426 @@
     }
 
     loadFaces();
+
+    // ══════════════════════════════════════════
+    //  DASHBOARD — CAMERA GRID / ZONES / PLAN 3D
+    // ══════════════════════════════════════════
+    var _viewMode    = 'grid';
+    var _gridCols    = 0;           // 0 = auto
+    var _visibleCams = new Set();
+    var _tileStats   = {};          // {cam_id: {total,identified,unknown}}
+    var _dashCamData = [];
+
+    // ── View mode ──
+    function setViewMode(mode) {
+      if (!['grid','zone','plan'].includes(mode)) mode = 'grid';
+      _viewMode = mode;
+
+      document.getElementById('view-grid').style.display = mode === 'grid' ? '' : 'none';
+      document.getElementById('view-zone').style.display = mode === 'zone' ? '' : 'none';
+      document.getElementById('view-plan').style.display = mode === 'plan' ? '' : 'none';
+      document.getElementById('gridSizeBar').style.display = mode === 'grid' ? '' : 'none';
+
+      ['grid','zone','plan'].forEach(function(m) {
+        var a = document.getElementById('vm-'    + m);
+        var b = document.getElementById('sb-vm-' + m);
+        if (a) a.classList.toggle('active', m === mode);
+        if (b) b.classList.toggle('active', m === mode);
+      });
+      if (mode === 'grid') renderCamGrid();
+      if (mode === 'zone') renderZoneView();
+      if (mode === 'plan') renderPlanView();
+    }
+
+    // ── Grid size ──
+    function setGridCols(n) {
+      _gridCols = n;
+      ['auto','1','2','3','4'].forEach(function(v){
+        var el = document.getElementById('gs-' + v);
+        if (el) el.classList.toggle('active', (n === 0 ? 'auto' : String(n)) === v);
+      });
+      applyGridCols(_visibleCams.size);
+    }
+    function applyGridCols(count) {
+      var grid = document.getElementById('camGrid');
+      if (!grid) return;
+      var n = _gridCols || autoGridCols(count || 0);
+      grid.style.gridTemplateColumns = 'repeat(' + n + ',1fr)';
+    }
+    function autoGridCols(count) {
+      if (count <= 1) return 1;
+      if (count <= 4) return 2;
+      if (count <= 9) return 3;
+      return 4;
+    }
+
+    // ── Grille ──
+    function renderCamGrid() {
+      var grid = document.getElementById('camGrid');
+      if (!grid) return;
+      var vis  = Array.from(_visibleCams).filter(function(id){
+        return _dashCamData.find(function(c){ return c.id === id; });
+      });
+      document.getElementById('dashVisCount').textContent = vis.length;
+      applyGridCols(vis.length);
+
+      if (!vis.length) {
+        grid.innerHTML = '<div class="col-span-full flex flex-col items-center justify-center gap-3 py-20 text-slate-600">' +
+          '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>' +
+          '<p class="text-xs italic">Aucune caméra active — vérifiez la visibilité dans le menu gauche</p></div>';
+        return;
+      }
+      grid.innerHTML = '';
+      vis.forEach(function(cam_id) {
+        var c = _dashCamData.find(function(x){ return x.id === cam_id; }) || {id:cam_id,label:cam_id,rooms:[],connected:false};
+        var tile = document.createElement('div');
+        tile.className = 'cam-tile relative rounded-xl overflow-hidden bg-[#0c0d15] border border-[#1e2035] cursor-pointer';
+        tile.style.aspectRatio = '16/9';
+        tile.dataset.camId = cam_id;
+        tile.onclick = function(e) { if (!e.shiftKey) openCamFullscreen(cam_id); };
+        tile.title = 'Clic = plein écran · Shift+clic = ignorer';
+
+        var roomsLbl = (c.rooms || []).join(' · ') || '—';
+        var feedSrc  = '/video_feed?cam_id=' + encodeURIComponent(cam_id);
+        var dotCls   = c.connected ? 'bg-green-400 live-dot' : 'bg-red-500';
+        var liveLbl  = c.connected ? 'LIVE' : 'OFF';
+        var liveClr  = c.connected ? 'text-white/80' : 'text-red-300';
+        var errorTxt = c.error && !c.connected ? '<p class="text-[10px] text-red-400 mt-1 px-2">' + escHtml(c.error.slice(0,60)) + '</p>' : '';
+
+        tile.innerHTML =
+          (c.connected
+            ? '<img src="' + feedSrc + '" class="absolute inset-0 w-full h-full object-cover pointer-events-none">'
+            : '<div class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-700">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/><line x1="1" y1="1" x2="23" y2="23"/></svg>' +
+                '<p class="text-[11px]">Déconnectée</p>' + errorTxt +
+              '</div>') +
+          // Top bar
+          '<div class="absolute top-0 inset-x-0 flex items-center justify-between p-2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">' +
+            '<div class="flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5">' +
+              '<span class="w-1.5 h-1.5 rounded-full ' + dotCls + ' inline-block"></span>' +
+              '<span class="text-[10px] font-semibold ' + liveClr + '">' + liveLbl + '</span>' +
+            '</div>' +
+            '<div id="tile-cnt-' + cam_id + '" class="hidden bg-indigo-600/70 backdrop-blur-sm rounded-full px-2 py-0.5 text-[10px] font-bold text-white">0</div>' +
+          '</div>' +
+          // Bottom bar
+          '<div class="absolute bottom-0 inset-x-0 p-2.5 bg-gradient-to-t from-black/85 to-transparent pointer-events-none">' +
+            '<p class="text-white text-xs font-semibold leading-none truncate">' + escHtml(c.label || cam_id) + '</p>' +
+            '<p class="text-slate-300/70 text-[10px] mt-0.5 truncate">' + escHtml(roomsLbl) + '</p>' +
+          '</div>';
+        grid.appendChild(tile);
+      });
+    }
+
+    function openCamFullscreen(cam_id) {
+      _visibleCams = new Set([cam_id]);
+      _gridCols = 1;
+      setGridCols(1);
+      setViewMode('grid');
+      updateCamVisibilityList();
+    }
+
+    // ── Zones view ──
+    function renderZoneView() {
+      var cards = document.getElementById('zoneCards');
+      if (!cards) return;
+      var roomMap = _buildRoomMap();
+      var zones   = Object.keys(roomMap).sort();
+      if (!zones.length) {
+        cards.innerHTML = '<div class="col-span-full text-center text-slate-600 italic text-xs py-20">Aucune zone configurée</div>';
+        return;
+      }
+      cards.innerHTML = '';
+      zones.forEach(function(room) {
+        var cams  = roomMap[room];
+        var first = cams.find(function(c){ return c.connected; }) || cams[0];
+        var nConn = cams.filter(function(c){ return c.connected; }).length;
+        var card  = document.createElement('div');
+        card.className = 'gradient-border rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-500/50 transition-all hover:shadow-xl hover:shadow-black/50 group';
+        card.onclick   = function() { filterByZone(room); };
+        var feedHtml = (first && first.connected)
+          ? '<img src="/video_feed?cam_id=' + encodeURIComponent(first.id) + '" class="absolute inset-0 w-full h-full object-cover">'
+          : '<div class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-700"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><p class="text-[11px]">Aucun flux actif</p></div>';
+
+        var roomKey = room.replace(/\W+/g,'_');
+        card.innerHTML =
+          '<div class="relative bg-[#0c0d15] overflow-hidden" style="aspect-ratio:16/9">' +
+            feedHtml +
+            '<div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none"></div>' +
+            '<div class="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1 pointer-events-none">' +
+              '<span id="zp-' + escHtml(roomKey) + '" class="text-xs font-bold text-white">0</span>' +
+              '<span class="text-[10px] text-slate-400 ml-1">pers.</span>' +
+            '</div>' +
+            '<div class="absolute top-2 left-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5 pointer-events-none">' +
+              (nConn > 0 ? '<span class="w-1.5 h-1.5 rounded-full bg-green-400 live-dot inline-block"></span>' : '<span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"></span>') +
+              '<span class="text-[10px] text-white/70 font-medium">' + nConn + '/' + cams.length + '</span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="p-3.5 flex items-center justify-between">' +
+            '<div>' +
+              '<p class="text-sm font-semibold text-white">' + escHtml(room) + '</p>' +
+              '<p class="text-[11px] text-slate-500 mt-0.5">' + cams.length + ' caméra' + (cams.length>1?'s':'') + '</p>' +
+            '</div>' +
+            '<div class="w-9 h-9 rounded-xl bg-indigo-500/10 group-hover:bg-indigo-500/20 flex items-center justify-center flex-shrink-0 transition-colors">' +
+              '<i data-lucide="camera" class="w-4 h-4 text-indigo-400"></i>' +
+            '</div>' +
+          '</div>';
+        cards.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function filterByZone(room) {
+      var ids = (_dashCamData || [])
+        .filter(function(c){ return (c.rooms||[]).indexOf(room) >= 0; })
+        .map(function(c){ return c.id; });
+      _visibleCams = new Set(ids);
+      _gridCols    = 0;
+      setGridCols(0);
+      setViewMode('grid');
+      updateCamVisibilityList();
+    }
+
+    // ── Plan 3D ──
+    function renderPlanView() {
+      var board = document.getElementById('planRooms');
+      if (!board) return;
+      var roomMap  = _buildRoomMap();
+      var allRooms = (_camMeta.rooms || []).concat(
+        Object.keys(roomMap).filter(function(r){ return (_camMeta.rooms||[]).indexOf(r)<0; })
+      );
+      if (!allRooms.length) {
+        board.innerHTML = '<div class="col-span-full text-center text-slate-600 italic text-xs py-20">Aucune zone configurée</div>';
+        return;
+      }
+      board.innerHTML = '';
+      allRooms.forEach(function(room) {
+        var cams  = roomMap[room] || [];
+        var hasCam = cams.length > 0;
+        var nConn = cams.filter(function(c){ return c.connected; }).length;
+        var block = document.createElement('div');
+        block.className = 'room-block rounded-2xl p-4 relative overflow-hidden min-h-[120px] flex flex-col justify-between' +
+          (hasCam
+            ? ' gradient-border cursor-pointer'
+            : ' border border-[#1e2035] opacity-30 cursor-default');
+        if (hasCam) {
+          block.style.background = 'linear-gradient(135deg,#1e2035 0%,#13141f 55%,#1a1b30 100%)';
+          block.onclick = function() { filterByZone(room); };
+          block.title   = 'Cliquer pour filtrer les caméras de ' + room;
+        }
+
+        // Subtle grid pattern overlay
+        var patternSvg = hasCam ? '<div class="absolute inset-0 opacity-5" style="background-image:radial-gradient(circle,#6366f1 1px,transparent 1px);background-size:20px 20px;pointer-events:none"></div>' : '';
+
+        var camDots = cams.slice(0,5).map(function(c){
+          return '<div class="flex items-center gap-1.5">' +
+            '<span class="w-1.5 h-1.5 rounded-full flex-shrink-0 ' + (c.connected?'bg-green-400 live-dot':'bg-slate-600') + '"></span>' +
+            '<span class="text-[10px] text-slate-400 truncate" style="max-width:80px">' + escHtml(c.label) + '</span>' +
+          '</div>';
+        }).join('');
+
+        var roomKey = room.replace(/\W+/g,'_');
+        block.innerHTML = patternSvg +
+          // Person count badge
+          (hasCam ? '<div class="absolute top-2 right-2 bg-indigo-600/25 border border-indigo-500/30 rounded-full px-2 py-0.5">' +
+            '<span id="pp-' + escHtml(roomKey) + '" class="text-[10px] font-bold text-indigo-300">0</span>' +
+            '<span class="text-[9px] text-indigo-500 ml-0.5">pers</span></div>' : '') +
+          '<div>' +
+            '<p class="text-xs font-bold ' + (hasCam?'text-slate-200':'text-slate-600') + '">' + escHtml(room) + '</p>' +
+            (hasCam
+              ? '<p class="text-[10px] text-slate-500 mt-0.5">' + nConn + '/' + cams.length + ' flux actif' + (nConn>1?'s':'') + '</p>'
+              : '<p class="text-[10px] text-slate-700 mt-0.5">Sans caméra</p>') +
+          '</div>' +
+          (hasCam
+            ? '<div class="flex flex-col gap-0.5 mt-2">' + camDots + '</div>' +
+              (cams.length > 5 ? '<p class="text-[9px] text-slate-600 mt-1">+' + (cams.length-5) + ' de plus</p>' : '')
+            : '');
+        board.appendChild(block);
+      });
+    }
+
+    // ── Sidebar camera visibility ──
+    function updateCamVisibilityList() {
+      var list = document.getElementById('camVisList');
+      if (!list) return;
+      if (!_dashCamData.length) {
+        list.innerHTML = '<p class="text-[10px] text-slate-600 italic px-2 py-1">Aucune caméra active</p>';
+        return;
+      }
+      list.innerHTML = '';
+      _dashCamData.forEach(function(c) {
+        var isVis  = _visibleCams.has(c.id);
+        var dotCls = c.connected ? 'bg-green-400 live-dot' : 'bg-slate-600';
+        var rooms  = (c.rooms||[]).slice(0,2).join(', ') || '—';
+        var row    = document.createElement('div');
+        row.className = 'camvis-row flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-white/5 ' + (isVis ? '' : 'hidden-cam');
+        row.onclick   = function() { toggleCamVis(c.id); };
+
+        var eyeOn  = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        var eyeOff = '<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+        row.innerHTML =
+          '<span class="w-2 h-2 rounded-full flex-shrink-0 ' + dotCls + '"></span>' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-[11px] font-medium text-slate-300 truncate leading-none">' + escHtml(c.label||c.id) + '</p>' +
+            '<p class="text-[9px] text-slate-600 truncate mt-0.5">' + escHtml(rooms) + '</p>' +
+          '</div>' +
+          '<button class="flex-shrink-0 p-1 rounded text-slate-600 hover:text-slate-300 transition-colors" title="' + (isVis?'Masquer':'Afficher') + '">' +
+            (isVis ? eyeOn : eyeOff) +
+          '</button>';
+        list.appendChild(row);
+      });
+    }
+
+    function toggleCamVis(cam_id) {
+      if (_visibleCams.has(cam_id)) {
+        if (_visibleCams.size > 1) _visibleCams.delete(cam_id);
+      } else {
+        _visibleCams.add(cam_id);
+        _gridCols = 0; setGridCols(0);
+      }
+      updateCamVisibilityList();
+      if (_viewMode === 'grid') renderCamGrid();
+      else if (_viewMode === 'zone') renderZoneView();
+      else renderPlanView();
+    }
+
+    // ── Dashboard stats polling ──
+    function refreshDashStats() {
+      var vis = Array.from(_visibleCams);
+      if (!vis.length) {
+        _updateGlobalStats(0,0,0);
+        return;
+      }
+      var total=0, identified=0, unknown=0, pending=vis.length;
+      vis.forEach(function(cam_id) {
+        fetch('/stats?cam_id=' + encodeURIComponent(cam_id))
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          _tileStats[cam_id] = d;
+          total      += d.total      || 0;
+          identified += d.identified || 0;
+          unknown    += d.unknown    || 0;
+          if (--pending === 0) {
+            _updateGlobalStats(total, identified, unknown);
+            _updateTileBadges();
+          }
+        })
+        .catch(function(){ if (--pending === 0) _updateGlobalStats(total, identified, unknown); });
+      });
+    }
+
+    function _updateGlobalStats(total, identified, unknown) {
+      var rate = total > 0 ? Math.round(identified/total*100) : 0;
+      document.getElementById('dashTotalPersons').textContent = total;
+      var ep = document.getElementById('db-persons');    if (ep) ep.textContent = total;
+      var ei = document.getElementById('db-identified'); if (ei) ei.textContent = identified;
+      var eu = document.getElementById('db-unknown');    if (eu) eu.textContent = unknown;
+      var er = document.getElementById('db-rate');       if (er) er.textContent = total > 0 ? rate + ' %' : '— %';
+      refreshStats();
+    }
+
+    function _updateTileBadges() {
+      Object.keys(_tileStats).forEach(function(cid) {
+        var el = document.getElementById('tile-cnt-' + cid);
+        if (el) {
+          var n = _tileStats[cid].total || 0;
+          el.textContent = n;
+          el.classList.toggle('hidden', n === 0);
+        }
+        // Update zone + plan person counters
+        var c = _dashCamData.find(function(x){ return x.id === cid; });
+        if (c) {
+          (c.rooms||[]).forEach(function(room){
+            var key = room.replace(/\W+/g,'_');
+            var elZ = document.getElementById('zp-' + key);
+            var elP = document.getElementById('pp-' + key);
+            // Accumulate (multiple cameras per room)
+            if (elZ) elZ.textContent = parseInt(elZ.textContent||0) + (_tileStats[cid].total||0);
+            if (elP) elP.textContent = parseInt(elP.textContent||0) + (_tileStats[cid].total||0);
+          });
+        }
+      });
+    }
+
+    // ── Dashboard camera list (right panel) ──
+    function refreshDashCamList() {
+      var list = document.getElementById('dashCamList');
+      if (!list) return;
+      var connected = _dashCamData.filter(function(c){ return c.connected; }).length;
+      var badge = document.getElementById('dashConnectedBadge');
+      if (badge) badge.textContent = connected + '/' + _dashCamData.length;
+
+      if (!_dashCamData.length) {
+        list.innerHTML = '<p class="text-[11px] text-slate-600 italic">Aucune caméra configurée</p>';
+        return;
+      }
+      list.innerHTML = '';
+      _dashCamData.forEach(function(c) {
+        var isVis  = _visibleCams.has(c.id);
+        var dot    = c.connected ? 'bg-green-400 live-dot' : 'bg-red-500';
+        var stCls  = c.connected ? 'text-green-400' : 'text-red-400';
+        var stTxt  = c.connected ? 'Connectée' : (c.error ? 'Erreur' : 'Arrêtée');
+        var rooms  = (c.rooms||[]).slice(0,2).join(', ') || '—';
+        var div    = document.createElement('div');
+        div.className = 'flex items-center gap-2.5 bg-[#0c0d15] border rounded-xl px-3 py-2.5 cursor-pointer transition-all ' +
+          (isVis ? 'border-[#2a2b3d] hover:border-indigo-500/40' : 'border-[#1e2035] opacity-40');
+        div.onclick = function() { openCamFullscreen(c.id); setNav('dashboard'); };
+        div.title   = isVis ? 'Cliquer pour plein écran' : 'Caméra masquée — cliquer pour la réafficher';
+        div.innerHTML =
+          '<span class="w-2 h-2 rounded-full flex-shrink-0 ' + dot + '"></span>' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-xs font-medium text-slate-200 truncate leading-none">' + escHtml(c.label||c.id) + '</p>' +
+            '<p class="text-[10px] text-slate-600 truncate mt-0.5">' + escHtml(rooms) + '</p>' +
+          '</div>' +
+          '<span class="text-[10px] font-semibold ' + stCls + ' flex-shrink-0">' + stTxt + '</span>';
+        list.appendChild(div);
+      });
+    }
+
+    // ── Helpers ──
+    function _buildRoomMap() {
+      var map = {};
+      _dashCamData.forEach(function(c) {
+        var rooms = c.rooms || (c.room ? [c.room] : []);
+        if (!rooms.length) rooms = ['Sans zone'];
+        rooms.forEach(function(r){
+          if (!map[r]) map[r] = [];
+          map[r].push(c);
+        });
+      });
+      return map;
+    }
+
+    // ── Initial dashboard load ──
+    fetch('/cameras').then(function(r){return r.json();}).then(function(cams){
+      _camData    = cams;
+      _dashCamData = cams.filter(function(c){ return c.enabled !== false; });
+      _visibleCams = new Set(_dashCamData.map(function(c){ return c.id; }));
+      document.getElementById('camNavBadge').textContent = cams.length;
+      updateCamVisibilityList();
+      refreshDashCamList();
+      setViewMode('grid');
+    }).catch(function(){
+      setViewMode('grid');
+    });
+
+    // Poll dashboard stats every 1.5s
+    setInterval(function() {
+      var md = document.getElementById('main-default');
+      if (md && md.style.display !== 'none') refreshDashStats();
+    }, 1500);
+
+    // Refresh camera list every 6s when dashboard is active
+    setInterval(function() {
+      var panel = document.getElementById('panel-dashboard');
+      if (panel && panel.classList.contains('active')) {
+        fetch('/cameras').then(function(r){return r.json();}).then(function(cams){
+          _camData = cams;
+          _refreshDashFromCams(cams);
+        }).catch(function(){});
+      }
+    }, 6000);
+
   </script>
 </body>
 </html>
