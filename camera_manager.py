@@ -64,6 +64,84 @@ def _save_raw(cameras):
 
 
 # ════════════════════════════════════════════
+#  Shared capture pool (one VideoCapture per unique URL)
+# ════════════════════════════════════════════
+
+_shared_caps = {}   # {url_key: _SharedCap}
+_sc_lock     = threading.Lock()
+
+
+class _SharedCap:
+    """Single VideoCapture shared by all workers pointing to the same URL."""
+
+    def __init__(self, url):
+        self._url      = url
+        self._frame    = None
+        self._lock     = threading.Lock()
+        self._users    = 0
+        self._running  = False
+        self._thread   = None
+        self.connected = False
+        self.error     = ''
+
+    def subscribe(self):
+        with self._lock:
+            self._users += 1
+            if not self._running:
+                self._running = True
+                self._thread = threading.Thread(
+                    target=self._capture_loop, daemon=True)
+                self._thread.start()
+
+    def unsubscribe(self):
+        with self._lock:
+            self._users = max(0, self._users - 1)
+            should_stop = (self._users == 0)
+        if should_stop:
+            self._running = False
+            with _sc_lock:
+                key = str(self._url)
+                if _shared_caps.get(key) is self:
+                    del _shared_caps[key]
+
+    def get_frame(self):
+        with self._lock:
+            return self._frame.copy() if self._frame is not None else None
+
+    def _capture_loop(self):
+        cap = cv2.VideoCapture(self._url)
+        if not cap.isOpened():
+            self.error     = "Impossible d'ouvrir : " + str(self._url)
+            self.connected = False
+            self._running  = False
+            print(f'[SharedCap {self._url}]', self.error)
+            return
+        self.connected = True
+        self.error     = ''
+        print(f'[SharedCap {self._url}] démarré')
+        while self._running:
+            ret, frame = cap.read()
+            if not ret:
+                time.sleep(0.05)
+                continue
+            with self._lock:
+                self._frame = frame.copy()
+        cap.release()
+        self.connected = False
+        print(f'[SharedCap {self._url}] arrêté')
+
+
+def _get_shared_cap(url):
+    key = str(url)
+    with _sc_lock:
+        if key not in _shared_caps:
+            _shared_caps[key] = _SharedCap(url)
+        sc = _shared_caps[key]
+    sc.subscribe()   # outside _sc_lock to avoid lock-order deadlock
+    return sc
+
+
+# ════════════════════════════════════════════
 #  Worker par caméra
 # ════════════════════════════════════════════
 
@@ -122,51 +200,68 @@ class CameraWorker:
     # ── boucle principale ─────────────────────
     def _loop(self):
         url = self._url()
-        cap = cv2.VideoCapture(url)
-        if not cap.isOpened():
-            self.error     = "Impossible d'ouvrir : " + str(url)
+        sc  = _get_shared_cap(url)
+        try:
+            # Wait for the shared capture to connect (max 5 s)
+            deadline = time.time() + 5
+            while time.time() < deadline:
+                if sc.connected or sc.error:
+                    break
+                time.sleep(0.1)
+
+            if sc.error:
+                self.error     = sc.error
+                self.connected = False
+                self._running  = False
+                print(f'[cam {self.cam_id}]', self.error)
+                return
+
+            if not sc.connected:
+                self.error     = "Délai d'attente dépassé : " + str(url)
+                self.connected = False
+                self._running  = False
+                print(f'[cam {self.cam_id}]', self.error)
+                return
+
+            self.connected = True
+            self.error     = ''
+            print(f'[cam {self.cam_id}] connectée via source partagée :', url)
+            idx = 0
+
+            while self._running:
+                frame = sc.get_frame()
+                if frame is None:
+                    time.sleep(0.033)
+                    continue
+
+                with self._lock:
+                    self.frame = frame.copy()
+
+                idx += 1
+                if idx % 4 != 0:
+                    continue
+
+                feats = set(self.config.get('features', []))
+                label = self.config.get('label', self.cam_id)
+
+                if 'face_recognition' in feats:
+                    res = self._rec.recognize(frame)
+                    with self._lock:
+                        self.results = res
+                    analyzer.submit(frame, res)
+                    tracker.update(res, frame, analyzer.get_results(), cam_label=label)
+                    if 'behavior_analysis' in feats:
+                        behavior.submit(frame, res)
+                else:
+                    with self._lock:
+                        self.results = []
+                    if 'behavior_analysis' in feats:
+                        behavior.submit(frame)
+
+        finally:
+            sc.unsubscribe()
             self.connected = False
-            self._running  = False
-            print(f'[cam {self.cam_id}]', self.error)
-            return
-
-        self.connected = True
-        self.error     = ''
-        print(f'[cam {self.cam_id}] connectée :', url)
-        idx = 0
-
-        while self._running:
-            ret, frame = cap.read()
-            if not ret:
-                time.sleep(0.05)
-                continue
-            with self._lock:
-                self.frame = frame.copy()
-
-            idx += 1
-            if idx % 4 != 0:
-                continue
-
-            feats = set(self.config.get('features', []))
-            label = self.config.get('label', self.cam_id)
-
-            if 'face_recognition' in feats:
-                res = self._rec.recognize(frame)
-                with self._lock:
-                    self.results = res
-                analyzer.submit(frame, res)
-                tracker.update(res, frame, analyzer.get_results(), cam_label=label)
-                if 'behavior_analysis' in feats:
-                    behavior.submit(frame, res)
-            else:
-                with self._lock:
-                    self.results = []
-                if 'behavior_analysis' in feats:
-                    behavior.submit(frame)
-
-        cap.release()
-        self.connected = False
-        print(f'[cam {self.cam_id}] arrêtée')
+            print(f'[cam {self.cam_id}] arrêtée')
 
     # ── sérialisation ─────────────────────────
     def to_dict(self, safe=True):

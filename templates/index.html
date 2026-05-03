@@ -192,23 +192,14 @@
       </button>
       <div id="sec-recon" class="flex flex-col gap-1">
         <button onclick="setNav('analyse')" id="nav-analyse" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="brain" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Analyse IA</span>
+          <i data-lucide="monitor-play" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-sm font-medium text-slate-400">Affichage</span>
           <span id="analyseCountBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
         </button>
         <button onclick="setNav('history')" id="nav-history" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
           <i data-lucide="table-2" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
           <span class="nav-label text-sm font-medium text-slate-400">Historique</span>
           <span id="histNavBadge" class="ml-auto bg-green-950/60 text-green-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
-        </button>
-        <button onclick="setNav('add')" id="nav-add" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="user-plus" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Ajouter</span>
-        </button>
-        <button onclick="setNav('people')" id="nav-people" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="users" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Personnes</span>
-          <span id="faceCountBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
         </button>
       </div>
 
@@ -234,6 +225,15 @@
         <svg id="arr-sys" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div id="sec-sys" class="flex flex-col gap-1">
+        <button onclick="setNav('add')" id="nav-add" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
+          <i data-lucide="user-plus" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-sm font-medium text-slate-400">Ajouter personne</span>
+        </button>
+        <button onclick="setNav('people')" id="nav-people" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
+          <i data-lucide="users" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-sm font-medium text-slate-400">Personnes</span>
+          <span id="faceCountBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
+        </button>
         <button onclick="setNav('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
           <i data-lucide="sliders-horizontal" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
           <span class="nav-label text-sm font-medium text-slate-400">Paramètres</span>
@@ -548,11 +548,20 @@
           </div>
         </div>
 
-        <!-- Panel: Analyse IA -->
+        <!-- Panel: Affichage (ex Analyse IA) -->
         <div id="panel-analyse" class="panel flex-1 overflow-y-auto p-5 gap-3">
           <div class="flex items-center justify-between flex-shrink-0">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Analyse IA</p>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Affichage</p>
             <span id="analyseCount" class="bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+          </div>
+
+          <!-- Filtre caméra (face_recognition uniquement) -->
+          <div>
+            <label class="text-[11px] text-slate-500 mb-1 block">Caméra analysée</label>
+            <select id="analyseCamSel" onchange="onAnalyseCamChange()"
+              class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500">
+              <option value="">Toutes (face recognition)</option>
+            </select>
           </div>
 
           <!-- Bouton analyser toutes personnes -->
@@ -629,6 +638,18 @@
               <button onclick="setIdentFilter('known')" id="hfi-known" class="hf-btn flex-1 text-[11px] py-1.5 rounded-lg font-medium transition-colors">Connus</button>
               <button onclick="setIdentFilter('unknown')" id="hfi-unknown" class="hf-btn flex-1 text-[11px] py-1.5 rounded-lg font-medium transition-colors">Inconnus</button>
             </div>
+
+            <p class="text-[11px] text-slate-500 font-medium mt-1">Filtrer par caméra</p>
+            <select id="histCamFilter" onchange="setHistCamFilter(this.value)"
+              class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500">
+              <option value="">Toutes les caméras</option>
+            </select>
+
+            <p class="text-[11px] text-slate-500 font-medium mt-1">Filtrer par zone</p>
+            <select id="histZoneFilter" onchange="setHistZoneFilter(this.value)"
+              class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500">
+              <option value="">Toutes les zones</option>
+            </select>
           </div>
 
           <!-- Actions -->
@@ -651,6 +672,11 @@
               <label class="text-xs text-slate-500 font-medium">Nom complet</label>
               <input type="text" id="nameInput" placeholder="Ex : Marouane Mez" autocomplete="off"
                 class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-indigo-500 transition-colors placeholder-slate-600 w-full">
+              <label class="text-xs text-slate-500 font-medium">Caméra de capture</label>
+              <select id="addCamSel"
+                class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500 w-full">
+                <option value="">Caméra principale</option>
+              </select>
               <button onclick="startWizard()"
                 class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold rounded-lg py-2.5 text-sm transition-all flex items-center justify-center gap-2">
                 <i data-lucide="camera" class="w-4 h-4"></i>
@@ -757,6 +783,16 @@
           <div class="flex items-center justify-between">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Posture en direct</p>
             <span id="behaviorCount" class="bg-violet-600/20 text-violet-400 border border-violet-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full">—</span>
+          </div>
+
+          <!-- Caméra et zone -->
+          <div class="gradient-border rounded-xl p-3 flex flex-col gap-2">
+            <p class="text-[11px] text-slate-500 font-medium">Caméra surveillée</p>
+            <select id="behavCamSel"
+              class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-violet-500">
+              <option value="">Toutes les caméras</option>
+            </select>
+            <div id="behavCamInfo" class="flex items-center gap-2 text-[11px] text-slate-600 italic">Chargement...</div>
           </div>
 
           <!-- Carte live -->
@@ -1026,7 +1062,23 @@
       document.getElementById('main-cameras').style.display   = isCameras   ? 'flex' : 'none';
 
       if (name === 'people')    loadFaces();
-      if (name === 'dashboard') { loadFaces(); setViewMode(_viewMode); }
+      if (name === 'dashboard') {
+        // Restore all enabled cameras in the grid
+        _visibleCams = new Set(_dashCamData.map(function(c){ return c.id; }));
+        _gridCols = 0; setGridCols(0);
+        loadFaces(); setViewMode(_viewMode);
+      }
+      if (name === 'analyse') {
+        // Show only cameras with face_recognition enabled
+        var frIds = _dashCamData
+          .filter(function(c){ return (c.features||[]).indexOf('face_recognition') >= 0; })
+          .map(function(c){ return c.id; });
+        _visibleCams = new Set(frIds);
+        _gridCols = 0; setGridCols(0);
+        setViewMode('grid');
+        updateCamVisibilityList();
+        refreshAnalyse();
+      }
       if (name === 'history')   loadHistory();
       if (name === 'behavhist') loadBehaviorHistory();
       if (name === 'cameras')   loadCameras();
@@ -1098,10 +1150,12 @@
 
     function doCapture() {
       showMsg('wizardMsg', 'Capture...', '');
+      var addCamSel = document.getElementById('addCamSel');
+      var capCamId = addCamSel ? addCamSel.value : '';
       fetch('/capture_profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: wName, step: wStep + 1, total: TOTAL })
+        body: JSON.stringify({ name: wName, step: wStep + 1, total: TOTAL, cam_id: capCamId || undefined })
       })
       .then(function(r) { return r.json(); })
       .then(function(d) {
@@ -1127,9 +1181,8 @@
     function loadFaces() {
       fetch('/faces').then(function(r) { return r.json(); }).then(function(faces) {
         var n = faces.length;
-        document.getElementById('faceCount').textContent = n;
-        document.getElementById('faceCountBadge').textContent = n;
-        document.getElementById('ov-registered').textContent = n;
+        var elFC = document.getElementById('faceCount'); if (elFC) elFC.textContent = n;
+        var elFB = document.getElementById('faceCountBadge'); if (elFB) elFB.textContent = n;
         var list = document.getElementById('faceList');
         list.innerHTML = '';
         if (!n) { list.innerHTML = '<li class="text-slate-600 text-xs text-center italic py-6">Aucune personne enregistrée</li>'; return; }
@@ -1206,7 +1259,13 @@
       msg.textContent = 'Analyse en cours...';
       msg.className = 'text-[11px] min-h-[14px] text-center text-slate-400';
 
-      fetch('/analyze/force_all', {method:'POST'})
+      var selCam = document.getElementById('analyseCamSel');
+      var cam_id = selCam ? selCam.value : '';
+      fetch('/analyze/force_all', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(cam_id ? {cam_id: cam_id} : {})
+      })
       .then(function(r){ return r.json(); })
       .then(function(d){
         if (!d.success) {
@@ -1285,6 +1344,22 @@
     };
 
     function refreshBehavior() {
+      // Update camera info display
+      var behavSel = document.getElementById('behavCamSel');
+      var camId = behavSel ? behavSel.value : '';
+      var infoEl = document.getElementById('behavCamInfo');
+      if (infoEl) {
+        if (camId) {
+          var cam = _dashCamData.find(function(c){ return c.id === camId; });
+          var zones = cam ? (cam.rooms||[]).join(', ') || 'Sans zone' : '—';
+          infoEl.innerHTML = '<span class="text-slate-400">' + escHtml(cam ? (cam.label||cam.id) : camId) + '</span>' +
+            '<span class="mx-1">·</span><span>' + escHtml(zones) + '</span>';
+        } else {
+          var bhCams = _dashCamData.filter(function(c){ return (c.features||[]).indexOf('behavior_analysis') >= 0; });
+          infoEl.textContent = bhCams.length + ' caméra(s) actives';
+        }
+      }
+
       fetch('/behavior').then(function(r){return r.json();}).then(function(d){
         var hint  = document.getElementById('behaviorInstallHint');
         var badge = document.getElementById('behaviorBadge');
@@ -1599,6 +1674,23 @@
         container.innerHTML = html;
       }).catch(function(){});
     }
+    function onAnalyseCamChange() {
+      var sel = document.getElementById('analyseCamSel');
+      var cam_id = sel ? sel.value : '';
+      // If a specific cam chosen, show only that cam in the grid
+      if (cam_id) {
+        _visibleCams = new Set([cam_id]);
+      } else {
+        var frIds = _dashCamData
+          .filter(function(c){ return (c.features||[]).indexOf('face_recognition') >= 0; })
+          .map(function(c){ return c.id; });
+        _visibleCams = new Set(frIds);
+      }
+      _gridCols = 0; setGridCols(0);
+      setViewMode('grid');
+      updateCamVisibilityList();
+    }
+
     setInterval(refreshAnalyse, 2500);
     refreshAnalyse();
 
@@ -1606,7 +1698,7 @@
     //  HISTORIQUE
     // ══════════════════════════════════════════
     var _historyData   = [];
-    var _histFilter    = { q: '', status: 'all', ident: 'all' };
+    var _histFilter    = { q: '', status: 'all', ident: 'all', camera: '', zone: '' };
     var _selectedIds   = new Set();
     var _histAutoRefr  = null;
 
@@ -1635,7 +1727,9 @@
                   || (_histFilter.ident === 'known'   && r.name !== 'Inconnu')
                   || (_histFilter.ident === 'unknown' && r.name === 'Inconnu');
         var mD     = (r.duration_s || 0) >= 2;
-        return mQ && mS && mI && mD;
+        var mC     = !_histFilter.camera || (r.camera || '') === _histFilter.camera;
+        var mZ     = !_histFilter.zone   || _histCamZoneMatch(r.camera, _histFilter.zone);
+        return mQ && mS && mI && mD && mC && mZ;
       });
 
       document.getElementById('historyCount').textContent = data.length;
@@ -1795,6 +1889,17 @@
       renderHistory();
     }
 
+    function setHistCamFilter(val) { _histFilter.camera = val; renderHistory(); }
+    function setHistZoneFilter(val) { _histFilter.zone = val; renderHistory(); }
+
+    // Returns true if the camera label belongs to the given zone
+    function _histCamZoneMatch(camLabel, zone) {
+      if (!camLabel || !zone) return true;
+      var cam = (_dashCamData || []).find(function(c){ return (c.label||c.id) === camLabel; });
+      if (!cam) return false;
+      return (cam.rooms || []).indexOf(zone) >= 0;
+    }
+
     function fmtDuration(s) {
       if (s === null || s === undefined || s === '') return '—';
       s = parseInt(s, 10);
@@ -1924,7 +2029,85 @@
       });
       updateCamVisibilityList();
       refreshDashCamList();
+      _populateCamSelectors();
       if (document.getElementById('panel-dashboard').classList.contains('active')) setViewMode(_viewMode);
+    }
+
+    function _populateCamSelectors() {
+      var allCams = _dashCamData;
+      var frCams  = allCams.filter(function(c){ return (c.features||[]).indexOf('face_recognition') >= 0; });
+      var bhCams  = allCams.filter(function(c){ return (c.features||[]).indexOf('behavior_analysis') >= 0; });
+
+      // --- Affichage (Analyse IA) cam selector ---
+      var analyseSel = document.getElementById('analyseCamSel');
+      if (analyseSel) {
+        var prev = analyseSel.value;
+        analyseSel.innerHTML = '<option value="">Toutes (face recognition)</option>';
+        frCams.forEach(function(c){
+          var opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = (c.label||c.id) + (c.rooms&&c.rooms.length ? ' · ' + c.rooms.slice(0,2).join(', ') : '');
+          analyseSel.appendChild(opt);
+        });
+        if (prev) analyseSel.value = prev;
+      }
+
+      // --- Ajouter cam selector ---
+      var addSel = document.getElementById('addCamSel');
+      if (addSel) {
+        var prev2 = addSel.value;
+        addSel.innerHTML = '<option value="">Caméra principale</option>';
+        allCams.filter(function(c){ return c.connected; }).forEach(function(c){
+          var opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = (c.label||c.id) + (c.rooms&&c.rooms.length ? ' · ' + c.rooms.slice(0,2).join(', ') : '');
+          addSel.appendChild(opt);
+        });
+        if (prev2) addSel.value = prev2;
+      }
+
+      // --- Behavior cam selector ---
+      var behSel = document.getElementById('behavCamSel');
+      if (behSel) {
+        var prev3 = behSel.value;
+        behSel.innerHTML = '<option value="">Toutes les caméras</option>';
+        bhCams.forEach(function(c){
+          var opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = (c.label||c.id) + (c.rooms&&c.rooms.length ? ' · ' + c.rooms.slice(0,2).join(', ') : '');
+          behSel.appendChild(opt);
+        });
+        if (prev3) behSel.value = prev3;
+      }
+
+      // --- History camera filter ---
+      var histCamSel = document.getElementById('histCamFilter');
+      if (histCamSel) {
+        var prev4 = histCamSel.value;
+        histCamSel.innerHTML = '<option value="">Toutes les caméras</option>';
+        allCams.forEach(function(c){
+          var lbl = c.label || c.id;
+          var opt = document.createElement('option');
+          opt.value = lbl; opt.textContent = lbl;
+          histCamSel.appendChild(opt);
+        });
+        if (prev4) histCamSel.value = prev4;
+      }
+
+      // --- History zone filter ---
+      var histZoneSel = document.getElementById('histZoneFilter');
+      if (histZoneSel) {
+        var prev5 = histZoneSel.value;
+        var zones = {};
+        allCams.forEach(function(c){ (c.rooms||[]).forEach(function(r){ zones[r]=1; }); });
+        histZoneSel.innerHTML = '<option value="">Toutes les zones</option>';
+        Object.keys(zones).sort().forEach(function(z){
+          var opt = document.createElement('option');
+          opt.value = z; opt.textContent = z;
+          histZoneSel.appendChild(opt);
+        });
+        if (prev5) histZoneSel.value = prev5;
+      }
     }
 
     function renderCameras(cams) {
@@ -2021,7 +2204,6 @@
       if (!c) return;
       document.getElementById('camEditId').value    = c.id;
       document.getElementById('camLabel').value     = c.label || '';
-      document.getElementById('camRoom').value      = c.room  || '';
       document.getElementById('camProtocol').value  = c.protocol || 'webcam';
       document.getElementById('camIp').value        = c.ip   || '';
       document.getElementById('camPort').value      = c.port || '';
@@ -2120,12 +2302,12 @@
       document.getElementById('sidebarAvatar').textContent   = initials;
       document.getElementById('sidebarUsername').textContent = d.username;
       document.getElementById('sidebarRole').textContent     = d.role === 'admin' ? 'Administrateur' : 'Utilisateur';
+      loadCamMeta();  // needed by all users for camera selectors
       if (d.role === 'admin') {
         document.getElementById('userMgmt').classList.remove('hidden');
         document.getElementById('nav-cameras').classList.remove('hidden');
         document.getElementById('dashAdminActions').classList.remove('hidden');
         loadUsers();
-        loadCamMeta();
       }
     });
 
@@ -2626,6 +2808,7 @@
       document.getElementById('camNavBadge').textContent = cams.length;
       updateCamVisibilityList();
       refreshDashCamList();
+      _populateCamSelectors();
       setViewMode('grid');
     }).catch(function(){
       setViewMode('grid');
