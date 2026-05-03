@@ -202,12 +202,20 @@ class CameraWorker:
         url = self._url()
         sc  = _get_shared_cap(url)
         try:
-            # Wait for the shared capture to connect (max 5 s)
-            deadline = time.time() + 5
+            # Wait for the shared capture to connect.
+            # cv2.VideoCapture(0) can take 15-20 s on Windows/DirectShow.
+            # Break early if the capture thread exits (error or unexpected stop).
+            deadline = time.time() + 60
             while time.time() < deadline:
                 if sc.connected or sc.error:
                     break
-                time.sleep(0.1)
+                if not self._running:          # worker stopped externally
+                    break
+                if not sc._running and not sc.connected:
+                    if not sc.error:
+                        sc.error = "Impossible d'ouvrir : " + str(url)
+                    break
+                time.sleep(0.25)
 
             if sc.error:
                 self.error     = sc.error
