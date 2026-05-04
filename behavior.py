@@ -161,20 +161,21 @@ def _finalize(end_ts):
                 'first_seen': _current_sess['first_seen'],
                 'last_seen':  _now_str(),
                 'duration_s': duration,
+                'camera':     _current_sess.get('_cam', ''),
             })
             if len(_history) > MAX_HISTORY:
                 _history.pop()
     _current_sess = None
 
 
-def _update_session(pose_key, name, frame=None):
+def _update_session(pose_key, name, frame=None, cam_label=''):
     global _current_sess
     ts  = time.time()
     now = _now_str()
     label, color, _ = _POSE_META.get(pose_key, _POSE_META['inconnu'])
     if _current_sess is None:
         _current_sess = {
-            '_ts': ts, '_name': name,
+            '_ts': ts, '_name': name, '_cam': cam_label,
             '_photo': _thumb(frame) if frame is not None else None,
             'behavior': pose_key, 'label': label, 'color': color,
             'first_seen': now,
@@ -182,13 +183,14 @@ def _update_session(pose_key, name, frame=None):
     elif _current_sess['behavior'] != pose_key:
         _finalize(ts)
         _current_sess = {
-            '_ts': ts, '_name': name,
+            '_ts': ts, '_name': name, '_cam': cam_label,
             '_photo': _thumb(frame) if frame is not None else None,
             'behavior': pose_key, 'label': label, 'color': color,
             'first_seen': now,
         }
     else:
         _current_sess['_name'] = name
+        _current_sess['_cam']  = cam_label
 
 
 # ════════════════════════════════════════════
@@ -199,7 +201,7 @@ def _worker():
     global _last_result, _last_landmarks
     while True:
         try:
-            frame, name = _queue.get(timeout=2)
+            frame, name, cam_label = _queue.get(timeout=2)
         except queue.Empty:
             continue
 
@@ -230,7 +232,7 @@ def _worker():
                     'confidence': round(conf * 100),
                     'name':       name,
                 })
-                _update_session(pose_key, name, frame)
+                _update_session(pose_key, name, frame, cam_label)
                 _check_fall(pose_key, ts, frame)
             else:
                 _last_landmarks = None
@@ -255,7 +257,7 @@ def start():
     threading.Thread(target=_worker, daemon=True).start()
 
 
-def submit(frame, face_results=None):
+def submit(frame, face_results=None, cam_label=''):
     if not _AVAILABLE or not _running:
         return
     name = 'Inconnu'
@@ -266,7 +268,7 @@ def submit(frame, face_results=None):
         elif len(face_results) == 1:
             name = face_results[0][4]
     try:
-        _queue.put_nowait((frame.copy(), name))
+        _queue.put_nowait((frame.copy(), name, cam_label))
     except queue.Full:
         pass
 

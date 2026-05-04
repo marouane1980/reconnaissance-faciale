@@ -259,12 +259,12 @@ class CameraWorker:
                     analyzer.submit(frame, res)
                     tracker.update(res, frame, analyzer.get_results(), cam_label=label)
                     if 'behavior_analysis' in feats:
-                        behavior.submit(frame, res)
+                        behavior.submit(frame, res, cam_label=label)
                 else:
                     with self._lock:
                         self.results = []
                     if 'behavior_analysis' in feats:
-                        behavior.submit(frame)
+                        behavior.submit(frame, cam_label=label)
 
         finally:
             sc.unsubscribe()
