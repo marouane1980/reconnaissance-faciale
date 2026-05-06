@@ -557,6 +557,36 @@ def plates_history_clear():
 def vehicles_list():
     return jsonify(vehicle_manager.list_vehicles())
 
+@app.route('/vehicles/capture_from_cam', methods=['POST'])
+@login_required
+def vehicles_capture_from_cam():
+    """Récupère la frame courante d'une caméra et lance l'extraction OCR."""
+    cam_id = (request.get_json() or {}).get('cam_id') or _cam_mgr.first_id()
+    if not cam_id:
+        return jsonify({'error': 'Aucune caméra disponible'}), 400
+    frame = _cam_mgr.get_frame(cam_id)
+    if frame is None:
+        return jsonify({'error': 'Caméra non disponible'}), 503
+    if not plate_recognizer.is_available():
+        return jsonify({'error': 'Module OCR non disponible (easyocr)'}), 503
+    info = plate_recognizer.extract_vehicle_info(frame)
+    info['matched']  = False
+    info['existing'] = None
+    if info.get('plate'):
+        existing = vehicle_manager.get_vehicle(info['plate'])
+        if existing:
+            info['matched']  = True
+            info['existing'] = existing
+    # Snapshot de la frame
+    try:
+        ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        if ok:
+            info['frame_img'] = 'data:image/jpeg;base64,' + base64.b64encode(buf).decode()
+    except Exception:
+        pass
+    return jsonify({'success': True, 'info': info})
+
+
 @app.route('/vehicles/extract_from_image', methods=['POST'])
 @login_required
 def vehicles_extract_from_image():
