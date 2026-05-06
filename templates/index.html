@@ -235,6 +235,26 @@
         </button>
       </div>
 
+      <!-- Immatriculation (pliable) -->
+      <button onclick="toggleSec('plate')" class="flex items-center justify-between w-full px-2 mt-4 mb-1 group">
+        <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest group-hover:text-slate-400 transition-colors">Immatriculation</p>
+        <svg id="arr-plate" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="sec-plate" class="flex flex-col gap-1">
+        <button onclick="setNav('plates')" id="nav-plates" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
+          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Surveillance live</span>
+          <span id="plateLiveBadge" class="bg-amber-950/60 text-amber-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">●</span>
+        </button>
+        <button onclick="setNav('vehicles')" id="nav-vehicles" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
+          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Véhicules</span>
+          <span id="vehicleNavBadge" class="bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
+        </button>
+        <button onclick="setNav('plathist')" id="nav-plathist" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
+          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Historique</span>
+          <span id="platHistBadge" class="bg-amber-950/60 text-amber-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
+        </button>
+      </div>
+
       <!-- Système (pliable) -->
       <button onclick="toggleSec('sys')" class="flex items-center justify-between w-full px-2 mt-4 mb-1 group">
         <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest group-hover:text-slate-400 transition-colors">Système</p>
@@ -550,6 +570,102 @@
               </thead>
               <tbody id="behavHistTbody">
                 <tr><td colspan="8" class="text-center text-slate-600 italic py-14">Aucune donnée — les comportements s'enregistrent automatiquement</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Plates live view ── -->
+        <div id="main-plates" class="hidden flex-1 flex flex-col overflow-hidden">
+          <div class="px-6 py-3 border-b border-[#1e2035] bg-[#0f1020] flex items-center gap-3 flex-shrink-0">
+            <i data-lucide="car" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>
+            <span class="text-sm font-semibold text-white">Surveillance plaques</span>
+            <span id="plateLiveCount" class="bg-amber-600/20 text-amber-400 border border-amber-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+            <div class="ml-auto flex items-center gap-2 text-[11px] text-slate-500">
+              <span id="plateOcrStatus" class="text-amber-400/70 text-[10px]">OCR actif</span>
+            </div>
+          </div>
+          <div class="flex-1 overflow-auto p-5">
+            <div id="plateLiveCards" class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
+              <div class="col-span-full text-center text-slate-600 italic text-xs py-20 opacity-40">
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="mx-auto mb-3"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M5 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+                <p class="text-xs">En attente de détection de plaque...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Vehicles registry ── -->
+        <div id="main-vehicles" class="hidden flex-1 flex flex-col overflow-hidden">
+          <div class="px-6 py-4 border-b border-[#1e2035] flex items-center gap-3 flex-shrink-0 bg-[#0f1020]">
+            <i data-lucide="car" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>
+            <h2 class="text-sm font-semibold text-white">Véhicules enregistrés</h2>
+            <span id="vehicleTableCount" class="bg-amber-600/20 text-amber-400 border border-amber-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+            <div class="ml-auto flex items-center gap-2">
+              <button onclick="loadVehicles()" class="flex items-center gap-1.5 bg-[#1e2035] hover:bg-[#2a2b3d] text-slate-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Actualiser
+              </button>
+              <button onclick="openAddVehicle()" class="flex items-center gap-1.5 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-600/40 text-amber-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="plus" class="w-3 h-3"></i> Ajouter
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 overflow-auto">
+            <table class="w-full text-xs border-collapse" style="min-width:820px">
+              <thead class="sticky top-0 z-10 bg-[#0f1020] border-b border-[#1e2035]">
+                <tr>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Plaque</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Type</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Marque / Modèle</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Couleur</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Châssis</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Propriétaire</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Notes</th>
+                  <th class="py-3 px-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="vehicleTbody">
+                <tr><td colspan="8" class="text-center text-slate-600 italic py-14">Aucun véhicule enregistré</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Plate history table ── -->
+        <div id="main-plathist" class="hidden flex-1 flex flex-col overflow-hidden relative">
+          <div class="px-6 py-4 border-b border-[#1e2035] flex items-center gap-3 flex-shrink-0 bg-[#0f1020]">
+            <i data-lucide="table-2" class="w-4 h-4 text-amber-400 flex-shrink-0"></i>
+            <h2 class="text-sm font-semibold text-white">Historique des plaques</h2>
+            <span id="platHistCount" class="bg-amber-600/20 text-amber-400 border border-amber-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+            <div class="ml-auto flex items-center gap-2">
+              <button onclick="loadPlateHistory()" class="flex items-center gap-1.5 bg-[#1e2035] hover:bg-[#2a2b3d] text-slate-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Actualiser
+              </button>
+              <button onclick="exportPlateCSV()" class="flex items-center gap-1.5 bg-green-600/20 hover:bg-green-600/30 border border-green-600/40 text-green-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="download" class="w-3 h-3"></i> Export CSV
+              </button>
+              <button onclick="clearPlateHistory()" class="flex items-center gap-1.5 bg-red-600/10 hover:bg-red-600/20 border border-red-600/30 text-red-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                <i data-lucide="trash-2" class="w-3 h-3"></i> Effacer
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 overflow-auto">
+            <table class="w-full text-xs border-collapse" style="min-width:900px">
+              <thead class="sticky top-0 z-10 bg-[#0f1020] border-b border-[#1e2035]">
+                <tr>
+                  <th class="py-3 px-3 w-14 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Photo</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Plaque</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Statut</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Type véhicule</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Couleur</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Propriétaire</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Caméra</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Première vue</th>
+                  <th class="py-3 px-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Durée</th>
+                </tr>
+              </thead>
+              <tbody id="platHistTbody">
+                <tr><td colspan="9" class="text-center text-slate-600 italic py-14">Aucune donnée</td></tr>
               </tbody>
             </table>
           </div>
@@ -1083,6 +1199,144 @@
           </div>
         </div>
 
+        <!-- Panel: Surveillance plaques live -->
+        <div id="panel-plates" class="panel flex-1 overflow-y-auto p-5 gap-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+            <span class="live-dot w-2 h-2 rounded-full bg-amber-400 inline-block"></span>
+            Détections récentes
+          </p>
+          <div id="panelPlateList" class="flex flex-col gap-2">
+            <p class="text-[11px] text-slate-600 italic">En attente...</p>
+          </div>
+
+          <div class="gradient-border rounded-xl p-3 flex flex-col gap-2 mt-2">
+            <p class="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Statistiques</p>
+            <div class="flex justify-between text-xs"><span class="text-slate-500">Total vu</span><span class="font-bold text-white" id="ps-total">0</span></div>
+            <div class="flex justify-between text-xs"><span class="text-slate-500">Présents</span><span class="font-bold text-amber-400" id="ps-present">0</span></div>
+            <div class="flex justify-between text-xs"><span class="text-slate-500">Enregistrés</span><span class="font-bold text-green-400" id="ps-matched">0</span></div>
+            <div class="flex justify-between text-xs"><span class="text-slate-500">Inconnus</span><span class="font-bold text-red-400" id="ps-unknown">0</span></div>
+          </div>
+
+          <select id="plateCamSel" onchange="onPlateCamChange(this.value)"
+            class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500">
+            <option value="">Toutes les caméras</option>
+          </select>
+        </div>
+
+        <!-- Panel: Véhicules enregistrés (formulaire) -->
+        <div id="panel-vehicles" class="panel flex-1 overflow-y-auto p-5 gap-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider" id="vehicleFormTitle">Nouveau véhicule</p>
+          <div class="gradient-border rounded-xl p-4 flex flex-col gap-3">
+            <input type="hidden" id="vehicleEditPlate">
+
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">Plaque *</label>
+              <input type="text" id="vehiclePlate" placeholder="AB-123-CD"
+                class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500 uppercase"
+                oninput="this.value=this.value.toUpperCase()">
+            </div>
+
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">Type de véhicule</label>
+              <select id="vehicleType"
+                class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500">
+                <option value="">— Sélectionner —</option>
+                <option value="Voiture">Voiture</option>
+                <option value="Camion">Camion</option>
+                <option value="Moto">Moto</option>
+                <option value="Van/Utilitaire">Van / Utilitaire</option>
+                <option value="Bus">Bus</option>
+                <option value="Pickup">Pickup</option>
+                <option value="SUV">SUV</option>
+                <option value="Autre">Autre</option>
+              </select>
+            </div>
+
+            <div class="flex gap-2">
+              <div class="flex-1">
+                <label class="text-[11px] text-slate-400 font-medium block mb-1">Marque</label>
+                <input type="text" id="vehicleBrand" placeholder="Renault, Peugeot..."
+                  class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500">
+              </div>
+              <div class="flex-1">
+                <label class="text-[11px] text-slate-400 font-medium block mb-1">Modèle</label>
+                <input type="text" id="vehicleModel" placeholder="Clio, 308..."
+                  class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500">
+              </div>
+            </div>
+
+            <div class="flex gap-2">
+              <div class="flex-1">
+                <label class="text-[11px] text-slate-400 font-medium block mb-1">Couleur</label>
+                <input type="text" id="vehicleColor" placeholder="Blanc, Bleu..."
+                  class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500">
+              </div>
+            </div>
+
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">N° de châssis (VIN)</label>
+              <input type="text" id="vehicleChassis" placeholder="VF1234ABCD5678901"
+                class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 font-mono outline-none focus:border-amber-500"
+                oninput="this.value=this.value.toUpperCase()">
+            </div>
+
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">Propriétaire</label>
+              <input type="text" id="vehicleOwner" placeholder="Nom du propriétaire..."
+                class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500">
+            </div>
+
+            <div>
+              <label class="text-[11px] text-slate-400 font-medium block mb-1">Notes</label>
+              <textarea id="vehicleNotes" rows="2" placeholder="Informations complémentaires..."
+                class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500 resize-none"></textarea>
+            </div>
+
+            <button onclick="submitVehicleForm()"
+              class="w-full flex items-center justify-center gap-2 bg-amber-600/20 hover:bg-amber-600/30 border border-amber-600/40 text-amber-400 text-xs font-semibold rounded-lg py-2.5 transition-colors">
+              <i data-lucide="save" class="w-3.5 h-3.5"></i>
+              <span id="vehicleSubmitLabel">Enregistrer le véhicule</span>
+            </button>
+            <div id="vehicleMsg" class="text-xs rounded-lg min-h-[14px]"></div>
+          </div>
+        </div>
+
+        <!-- Panel: Historique plaques (filtres) -->
+        <div id="panel-plathist" class="panel flex-1 overflow-y-auto p-5 gap-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Filtres</p>
+          <div class="gradient-border rounded-xl p-4 flex flex-col gap-3">
+            <div class="relative">
+              <i data-lucide="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600"></i>
+              <input type="text" id="platHistSearch" placeholder="Plaque, propriétaire..."
+                class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg pl-8 pr-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500 placeholder-slate-600"
+                oninput="onPlatHistSearch(this.value)">
+            </div>
+
+            <p class="text-[11px] text-slate-500 font-medium mt-1">Filtrer par caméra</p>
+            <select id="platHistCamFilter" onchange="onPlatHistCamFilter(this.value)"
+              class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-amber-500">
+              <option value="">Toutes les caméras</option>
+            </select>
+
+            <p class="text-[11px] text-slate-500 font-medium mt-1">Filtrer par statut</p>
+            <div class="flex flex-col gap-1">
+              <button onclick="setPlatHistFilter('all')"     id="phf-all"     class="hf-btn active text-left text-[11px] py-1.5 px-3 rounded-lg font-medium transition-colors">Tous</button>
+              <button onclick="setPlatHistFilter('present')" id="phf-present" class="hf-btn text-left text-[11px] py-1.5 px-3 rounded-lg font-medium transition-colors">● Présent</button>
+              <button onclick="setPlatHistFilter('gone')"    id="phf-gone"    class="hf-btn text-left text-[11px] py-1.5 px-3 rounded-lg font-medium transition-colors">✓ Parti</button>
+              <button onclick="setPlatHistFilter('matched')" id="phf-matched" class="hf-btn text-left text-[11px] py-1.5 px-3 rounded-lg font-medium transition-colors">✔ Enregistré</button>
+              <button onclick="setPlatHistFilter('unknown')" id="phf-unknown" class="hf-btn text-left text-[11px] py-1.5 px-3 rounded-lg font-medium transition-colors">? Inconnu</button>
+            </div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <button onclick="exportPlateCSV()" class="w-full flex items-center justify-center gap-2 bg-green-600/20 hover:bg-green-600/30 border border-green-600/40 text-green-400 text-xs font-semibold rounded-lg py-2.5 transition-colors">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i> Exporter CSV
+            </button>
+            <button onclick="clearPlateHistory()" class="w-full flex items-center justify-center gap-2 bg-red-600/10 hover:bg-red-600/20 border border-red-600/30 text-red-400 text-xs font-semibold rounded-lg py-2.5 transition-colors">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Effacer l'historique
+            </button>
+          </div>
+        </div>
+
       </aside>
     </div>
   </div>
@@ -1091,7 +1345,7 @@
     lucide.createIcons();
 
     // ── Navigation ──
-    var NAVS = ['dashboard','analyse','history','add','people','settings','behavior','behavhist','behavsettings','cameras','users'];
+    var NAVS = ['dashboard','analyse','history','add','people','settings','behavior','behavhist','behavsettings','cameras','users','plates','vehicles','plathist'];
     function setNav(name) {
       NAVS.forEach(function(n) {
         var btn   = document.getElementById('nav-' + n);
@@ -1099,14 +1353,17 @@
         if (btn)   btn.classList.toggle('active',   n === name);
         if (panel) panel.classList.toggle('active', n === name);
       });
-      var isHist         = (name === 'history');
-      var isBehavHist    = (name === 'behavhist');
-      var isCameras      = (name === 'cameras');
-      var isUsers        = (name === 'users');
-      var isAdd          = (name === 'add');
-      var isPeople       = (name === 'people');
-      var isBlank        = (name === 'settings');
-      var showDefault    = !isHist && !isBehavHist && !isCameras && !isUsers && !isAdd && !isPeople && !isBlank;
+      var isHist      = (name === 'history');
+      var isBehavHist = (name === 'behavhist');
+      var isCameras   = (name === 'cameras');
+      var isUsers     = (name === 'users');
+      var isAdd       = (name === 'add');
+      var isPeople    = (name === 'people');
+      var isBlank     = (name === 'settings');
+      var isPlates    = (name === 'plates');
+      var isVehicles  = (name === 'vehicles');
+      var isPlatHist  = (name === 'plathist');
+      var showDefault = !isHist && !isBehavHist && !isCameras && !isUsers && !isAdd && !isPeople && !isBlank && !isPlates && !isVehicles && !isPlatHist;
 
       document.getElementById('main-default').style.display   = showDefault ? ''     : 'none';
       document.getElementById('main-history').style.display   = isHist      ? 'flex' : 'none';
@@ -1116,10 +1373,15 @@
       document.getElementById('main-blank').style.display     = isBlank     ? 'flex' : 'none';
       document.getElementById('main-add').style.display       = isAdd       ? 'flex' : 'none';
       document.getElementById('main-people').style.display    = isPeople    ? 'flex' : 'none';
+      document.getElementById('main-plates').style.display    = isPlates    ? 'flex' : 'none';
+      document.getElementById('main-vehicles').style.display  = isVehicles  ? 'flex' : 'none';
+      document.getElementById('main-plathist').style.display  = isPlatHist  ? 'flex' : 'none';
 
       if (isPeople)       { loadFaces(); }
       if (isAdd)          { onAddCamChange(); }
       if (isUsers)        { loadUsers(); }
+      if (isVehicles)     { loadVehicles(); openAddVehicle(); }
+      if (isPlatHist)     { loadPlateHistory(); }
       if (name === 'dashboard') {
         _visibleCams = new Set(_dashCamData.map(function(c){ return c.id; }));
         _gridCols = 0; setGridCols(0);
@@ -2258,6 +2520,20 @@
         });
         if (prev6) behavCamFilt.value = prev6;
       }
+
+      // --- Plate live cam selector ---
+      var plCamSel = document.getElementById('plateCamSel');
+      if (plCamSel) {
+        var prev7 = plCamSel.value;
+        var prCams = allCams.filter(function(c){ return (c.features||[]).indexOf('plate_recognition') >= 0; });
+        plCamSel.innerHTML = '<option value="">Toutes les caméras</option>';
+        prCams.forEach(function(c){
+          var opt = document.createElement('option');
+          opt.value = c.id; opt.textContent = c.label || c.id;
+          plCamSel.appendChild(opt);
+        });
+        if (prev7) plCamSel.value = prev7;
+      }
     }
 
     function renderCameras(cams) {
@@ -2993,6 +3269,315 @@
         }).catch(function(){});
       }
     }, 6000);
+
+    // ══════════════════════════════════════════════════
+    //  IMMATRICULATION — Plaques & Véhicules
+    // ══════════════════════════════════════════════════
+
+    var _platHistData  = [];
+    var _platHistFilter = { status: 'all', camera: '', search: '' };
+    var _plateResults  = [];
+
+    // ── Surveillance live ─────────────────────────────
+
+    function refreshPlateResults() {
+      fetch('/plates/results').then(function(r){return r.json();}).then(function(d){
+        _plateResults = d.results || [];
+        var badge = document.getElementById('plateLiveBadge');
+        if (badge) {
+          badge.textContent = _plateResults.length > 0 ? '●' : '';
+          badge.classList.toggle('hidden', _plateResults.length === 0);
+        }
+        var countEl = document.getElementById('plateLiveCount');
+        if (countEl) countEl.textContent = _plateResults.length;
+        renderPlateLiveCards();
+        renderPanelPlateList();
+      }).catch(function(){});
+
+      fetch('/plates/stats').then(function(r){return r.json();}).then(function(s){
+        var f = function(id, v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+        f('ps-total',   s.total   || 0);
+        f('ps-present', s.present || 0);
+        f('ps-matched', s.matched || 0);
+        f('ps-unknown', s.unknown || 0);
+      }).catch(function(){});
+    }
+
+    function renderPlateLiveCards() {
+      var container = document.getElementById('plateLiveCards');
+      if (!container) return;
+      if (_plateResults.length === 0) {
+        container.innerHTML = '<div class="col-span-full text-center text-slate-600 italic text-xs py-20 opacity-40">' +
+          '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="mx-auto mb-3"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M5 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>' +
+          '<p class="text-xs">En attente de détection de plaque...</p></div>';
+        return;
+      }
+      container.innerHTML = _plateResults.map(function(r) {
+        var isKnown  = r.matched;
+        var accent   = isKnown ? 'green' : 'amber';
+        var frameImg = r.frame_img ? '<img src="' + r.frame_img + '" class="w-full object-cover" style="max-height:120px;object-fit:cover">' : '';
+        var plateImg = r.plate_img ? '<img src="' + r.plate_img + '" class="mx-auto h-8 object-contain rounded">' : '';
+        return '<div class="gradient-border rounded-xl overflow-hidden">' +
+          (frameImg ? '<div class="relative bg-black/30">' + frameImg + '</div>' : '') +
+          '<div class="p-3 flex flex-col gap-1.5">' +
+            '<div class="flex items-center justify-between">' +
+              '<span class="text-sm font-mono font-bold tracking-widest text-' + accent + '-300">' + escHtml(r.plate) + '</span>' +
+              '<span class="text-[10px] px-1.5 py-0.5 rounded-full ' + (isKnown ? 'bg-green-950/60 text-green-400' : 'bg-amber-950/60 text-amber-400') + '">' + (isKnown ? '✔ Enregistré' : '? Inconnu') + '</span>' +
+            '</div>' +
+            (plateImg ? plateImg : '') +
+            '<div class="flex flex-wrap gap-1.5 mt-1 text-[10px] text-slate-500">' +
+              (r.vtype  ? '<span class="bg-[#1e2035] px-1.5 py-0.5 rounded font-medium">' + escHtml(r.vtype) + '</span>' : '') +
+              (r.color  ? '<span class="bg-[#1e2035] px-1.5 py-0.5 rounded">' + escHtml(r.color) + '</span>' : '') +
+              (r.camera ? '<span class="bg-[#1e2035] px-1.5 py-0.5 rounded">' + escHtml(r.camera) + '</span>' : '') +
+            '</div>' +
+            '<p class="text-[10px] text-slate-600">' + escHtml(r.timestamp||'') + ' · conf. ' + (r.confidence||0) + '%</p>' +
+          '</div></div>';
+      }).join('');
+    }
+
+    function renderPanelPlateList() {
+      var el = document.getElementById('panelPlateList');
+      if (!el) return;
+      if (_plateResults.length === 0) {
+        el.innerHTML = '<p class="text-[11px] text-slate-600 italic">Aucune plaque détectée</p>';
+        return;
+      }
+      el.innerHTML = _plateResults.slice(0, 8).map(function(r) {
+        return '<div class="flex items-center gap-2 bg-[#1a1b2e] rounded-lg px-3 py-2">' +
+          '<span class="font-mono font-bold text-xs text-amber-300 flex-1">' + escHtml(r.plate) + '</span>' +
+          (r.vtype ? '<span class="text-[10px] text-slate-500">' + escHtml(r.vtype) + '</span>' : '') +
+          '<span class="text-[10px] text-slate-600">' + (r.confidence||0) + '%</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    function onPlateCamChange(val) { /* future: filter live by cam */ }
+
+    setInterval(function() {
+      if (document.getElementById('panel-plates').classList.contains('active')) {
+        refreshPlateResults();
+      }
+    }, 1200);
+
+    // ── Véhicules enregistrés ─────────────────────────
+
+    var _vehicleEditMode = false;
+
+    function loadVehicles() {
+      fetch('/vehicles').then(function(r){return r.json();}).then(function(data){
+        var tbody  = document.getElementById('vehicleTbody');
+        var countEl = document.getElementById('vehicleTableCount');
+        var badge  = document.getElementById('vehicleNavBadge');
+        if (countEl) countEl.textContent = data.length;
+        if (badge)   badge.textContent   = data.length;
+        if (!tbody)  return;
+        if (data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="text-center text-slate-600 italic py-14">Aucun véhicule enregistré</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.map(function(v) {
+          return '<tr class="border-b border-[#1e2035] hover:bg-white/[0.02] transition-colors">' +
+            '<td class="py-2.5 px-4 font-mono font-bold text-amber-300 text-xs">' + escHtml(v.plate||'') + '</td>' +
+            '<td class="py-2.5 px-4 text-slate-300">' + escHtml(v.type||'—') + '</td>' +
+            '<td class="py-2.5 px-4 text-slate-300">' + escHtml((v.brand||'') + (v.model ? ' ' + v.model : '') || '—') + '</td>' +
+            '<td class="py-2.5 px-4 text-slate-300">' + escHtml(v.color||'—') + '</td>' +
+            '<td class="py-2.5 px-4 font-mono text-[10px] text-slate-400">' + escHtml(v.chassis||'—') + '</td>' +
+            '<td class="py-2.5 px-4 text-slate-300">' + escHtml(v.owner||'—') + '</td>' +
+            '<td class="py-2.5 px-4 text-slate-500 text-[10px] max-w-[120px] truncate">' + escHtml(v.notes||'—') + '</td>' +
+            '<td class="py-2.5 px-4">' +
+              '<div class="flex items-center gap-1.5">' +
+                '<button onclick="editVehicle(' + JSON.stringify(v) + ')" class="text-indigo-400 hover:text-indigo-300 text-[10px] font-semibold bg-indigo-600/10 hover:bg-indigo-600/20 px-2 py-1 rounded transition-colors">Éditer</button>' +
+                '<button onclick="deleteVehicle(\'' + escHtml(v.plate) + '\')" class="text-red-400 hover:text-red-300 text-[10px] font-semibold bg-red-600/10 hover:bg-red-600/20 px-2 py-1 rounded transition-colors">Suppr.</button>' +
+              '</div>' +
+            '</td>' +
+          '</tr>';
+        }).join('');
+      }).catch(function(){ });
+    }
+
+    function openAddVehicle() {
+      _vehicleEditMode = false;
+      var ids = ['vehiclePlate','vehicleBrand','vehicleModel','vehicleColor','vehicleChassis','vehicleOwner','vehicleNotes'];
+      ids.forEach(function(id){ var e=document.getElementById(id); if(e) e.value=''; });
+      document.getElementById('vehicleType').value = '';
+      document.getElementById('vehicleEditPlate').value = '';
+      document.getElementById('vehicleFormTitle').textContent = 'Nouveau véhicule';
+      document.getElementById('vehicleSubmitLabel').textContent = 'Enregistrer le véhicule';
+      document.getElementById('vehicleMsg').textContent = '';
+      document.getElementById('vehiclePlate').removeAttribute('readonly');
+    }
+
+    function editVehicle(v) {
+      _vehicleEditMode = true;
+      document.getElementById('vehicleEditPlate').value = v.plate;
+      document.getElementById('vehiclePlate').value     = v.plate;
+      document.getElementById('vehiclePlate').setAttribute('readonly', 'true');
+      document.getElementById('vehicleType').value      = v.type  || '';
+      document.getElementById('vehicleBrand').value     = v.brand || '';
+      document.getElementById('vehicleModel').value     = v.model || '';
+      document.getElementById('vehicleColor').value     = v.color || '';
+      document.getElementById('vehicleChassis').value   = v.chassis || '';
+      document.getElementById('vehicleOwner').value     = v.owner || '';
+      document.getElementById('vehicleNotes').value     = v.notes || '';
+      document.getElementById('vehicleFormTitle').textContent   = 'Modifier le véhicule';
+      document.getElementById('vehicleSubmitLabel').textContent = 'Sauvegarder les modifications';
+      document.getElementById('vehicleMsg').textContent = '';
+      setNav('vehicles');
+    }
+
+    function submitVehicleForm() {
+      var plate = document.getElementById('vehiclePlate').value.trim().toUpperCase();
+      if (!plate) { showVehicleMsg('Plaque requise', 'red'); return; }
+      var data = {
+        plate:   plate,
+        type:    document.getElementById('vehicleType').value,
+        brand:   document.getElementById('vehicleBrand').value,
+        model:   document.getElementById('vehicleModel').value,
+        color:   document.getElementById('vehicleColor').value,
+        chassis: document.getElementById('vehicleChassis').value,
+        owner:   document.getElementById('vehicleOwner').value,
+        notes:   document.getElementById('vehicleNotes').value,
+      };
+      var editPlate = document.getElementById('vehicleEditPlate').value;
+      var method = _vehicleEditMode ? 'PUT' : 'POST';
+      var url    = _vehicleEditMode ? '/vehicles/' + encodeURIComponent(editPlate) : '/vehicles';
+      fetch(url, { method: method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+        .then(function(r){return r.json();})
+        .then(function(d){
+          if (d.success) {
+            showVehicleMsg('Véhicule enregistré ✓', 'green');
+            loadVehicles();
+            if (!_vehicleEditMode) openAddVehicle();
+          } else {
+            showVehicleMsg(d.error || 'Erreur', 'red');
+          }
+        }).catch(function(){ showVehicleMsg('Erreur réseau', 'red'); });
+    }
+
+    function showVehicleMsg(msg, color) {
+      var el = document.getElementById('vehicleMsg');
+      if (!el) return;
+      el.textContent = msg;
+      el.className = 'text-xs rounded-lg min-h-[14px] ' + (color === 'green' ? 'text-green-400' : 'text-red-400');
+    }
+
+    function deleteVehicle(plate) {
+      if (!confirm('Supprimer le véhicule ' + plate + ' ?')) return;
+      fetch('/vehicles/' + encodeURIComponent(plate), { method: 'DELETE' })
+        .then(function(r){return r.json();})
+        .then(function(d){ if (d.success) loadVehicles(); })
+        .catch(function(){});
+    }
+
+    // ── Historique plaques ────────────────────────────
+
+    function loadPlateHistory() {
+      fetch('/plates/history').then(function(r){return r.json();}).then(function(data){
+        _platHistData = data;
+        var badge = document.getElementById('platHistBadge');
+        if (badge) {
+          badge.textContent = data.length;
+          badge.classList.toggle('hidden', data.length === 0);
+        }
+        var countEl = document.getElementById('platHistCount');
+        if (countEl) countEl.textContent = data.length;
+        renderPlatHistTable();
+        _populatePlatHistCamFilter(data);
+      }).catch(function(){});
+    }
+
+    function _populatePlatHistCamFilter(data) {
+      var cams = {};
+      data.forEach(function(r){ if (r.camera) cams[r.camera] = 1; });
+      var sel = document.getElementById('platHistCamFilter');
+      if (!sel) return;
+      var cur = sel.value;
+      sel.innerHTML = '<option value="">Toutes les caméras</option>';
+      Object.keys(cams).sort().forEach(function(c){
+        var opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        if (c === cur) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderPlatHistTable() {
+      var tbody = document.getElementById('platHistTbody');
+      if (!tbody) return;
+      var f = _platHistFilter;
+      var rows = _platHistData.filter(function(r) {
+        if (f.status === 'present' && r.status !== 'present') return false;
+        if (f.status === 'gone'    && r.status !== 'gone')    return false;
+        if (f.status === 'matched' && !r.matched)             return false;
+        if (f.status === 'unknown' && r.matched)              return false;
+        if (f.camera && r.camera !== f.camera)                return false;
+        if (f.search) {
+          var q = f.search.toLowerCase();
+          if ((r.plate||'').toLowerCase().indexOf(q) < 0 &&
+              (r.owner||'').toLowerCase().indexOf(q) < 0)    return false;
+        }
+        return true;
+      });
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-slate-600 italic py-14">Aucun résultat</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(function(r) {
+        var isPresent = r.status === 'present';
+        var stClass   = isPresent ? 'bg-green-950/60 text-green-400' : 'bg-[#1e2035] text-slate-500';
+        var dur = r.duration_s > 0 ? Math.floor(r.duration_s/60) + 'm ' + (r.duration_s%60) + 's' : '—';
+        var plateImg = r.plate_img ? '<img src="' + r.plate_img + '" class="h-9 rounded object-cover" title="' + escHtml(r.plate) + '">' : '—';
+        return '<tr class="border-b border-[#1e2035] hover:bg-white/[0.02] transition-colors">' +
+          '<td class="py-2 px-3">' + plateImg + '</td>' +
+          '<td class="py-2 px-3 font-mono font-bold text-amber-300">' + escHtml(r.plate||'') + '</td>' +
+          '<td class="py-2 px-3"><span class="text-[10px] px-1.5 py-0.5 rounded-full ' + stClass + '">' + (isPresent ? '● Présent' : '✓ Parti') + '</span></td>' +
+          '<td class="py-2 px-3 text-slate-300">' + escHtml(r.vtype||'—') + '</td>' +
+          '<td class="py-2 px-3 text-slate-300">' + escHtml(r.color||'—') + '</td>' +
+          '<td class="py-2 px-3 text-slate-300">' + escHtml(r.owner||'—') + '</td>' +
+          '<td class="py-2 px-3 text-slate-400">' + escHtml(r.camera||'—') + '</td>' +
+          '<td class="py-2 px-3 text-slate-400">' + escHtml(r.first_seen||'—') + '</td>' +
+          '<td class="py-2 px-3 text-slate-400">' + dur + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function setPlatHistFilter(status) {
+      _platHistFilter.status = status;
+      ['all','present','gone','matched','unknown'].forEach(function(k){
+        var b = document.getElementById('phf-' + k);
+        if (b) b.classList.toggle('active', k === status);
+      });
+      renderPlatHistTable();
+    }
+
+    function onPlatHistCamFilter(val) {
+      _platHistFilter.camera = val;
+      renderPlatHistTable();
+    }
+
+    function onPlatHistSearch(val) {
+      _platHistFilter.search = val;
+      renderPlatHistTable();
+    }
+
+    function clearPlateHistory() {
+      if (!confirm('Effacer tout l\'historique des plaques ?')) return;
+      fetch('/plates/history/clear', { method: 'POST' }).then(function(){
+        loadPlateHistory();
+      }).catch(function(){});
+    }
+
+    function exportPlateCSV() {
+      var headers = ['Plaque','Statut','Type','Couleur','Propriétaire','Marque','Modèle','Caméra','Première vue','Dernière vue','Durée (s)'];
+      var rows = _platHistData.map(function(r){
+        return [r.plate,r.status,r.vtype,r.color,r.owner,r.brand,r.model,r.camera,r.first_seen,r.last_seen,r.duration_s].map(function(v){ return '"' + (v||'').toString().replace(/"/g,'""') + '"'; }).join(',');
+      });
+      var csv = [headers.join(',')].concat(rows).join('\n');
+      var a   = document.createElement('a');
+      a.href  = 'data:text/csv;charset=utf-8,' + encodeURIComponent('﻿' + csv);
+      a.download = 'historique_plaques_' + new Date().toISOString().slice(0,10) + '.csv';
+      a.click();
+    }
 
   </script>
 </body>

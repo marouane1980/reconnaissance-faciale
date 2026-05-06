@@ -12,6 +12,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import analyzer
 import tracker
 import behavior
+import plate_recognizer
+import vehicle_manager
 from camera_manager import CameraManager, ROOMS, FEATURES
 
 app = Flask(__name__)
@@ -65,6 +67,8 @@ def admin_required(f):
 analyzer.start()
 analyzer.set_on_result_callback(tracker.update_demographics)
 behavior.start()
+plate_recognizer.start()
+plate_recognizer.set_on_result_callback(vehicle_manager.update_sighting)
 
 _cam_mgr = CameraManager()
 
@@ -463,6 +467,76 @@ def cameras_toggle(cam_id):
 @login_required
 def cameras_meta():
     return jsonify({'rooms': ROOMS, 'features': FEATURES})
+
+
+# ════════════════════════════════════════════
+#  PLATES & VEHICLES ROUTES
+# ════════════════════════════════════════════
+
+@app.route('/plates/results')
+@login_required
+def plates_results():
+    return jsonify({
+        'available': plate_recognizer.is_available(),
+        'results':   plate_recognizer.get_results(),
+    })
+
+@app.route('/plates/history')
+@login_required
+def plates_history():
+    return jsonify(vehicle_manager.get_history())
+
+@app.route('/plates/stats')
+@login_required
+def plates_stats():
+    return jsonify(vehicle_manager.get_stats())
+
+@app.route('/plates/history/delete', methods=['POST'])
+@login_required
+def plates_history_delete():
+    data = request.get_json() or {}
+    ids  = data.get('ids', [])
+    vehicle_manager.delete_entries(ids)
+    return jsonify({'success': True, 'deleted': len(ids)})
+
+@app.route('/plates/history/clear', methods=['POST'])
+@login_required
+def plates_history_clear():
+    vehicle_manager.clear_history()
+    return jsonify({'success': True})
+
+@app.route('/vehicles', methods=['GET'])
+@login_required
+def vehicles_list():
+    return jsonify(vehicle_manager.list_vehicles())
+
+@app.route('/vehicles', methods=['POST'])
+@login_required
+@admin_required
+def vehicles_add():
+    data = request.get_json() or {}
+    ok, msg = vehicle_manager.add_vehicle(data)
+    if ok:
+        return jsonify({'success': True})
+    return jsonify({'error': msg}), 400
+
+@app.route('/vehicles/<plate>', methods=['PUT'])
+@login_required
+@admin_required
+def vehicles_update(plate):
+    data = request.get_json() or {}
+    ok, msg = vehicle_manager.update_vehicle(plate.upper(), data)
+    if ok:
+        return jsonify({'success': True})
+    return jsonify({'error': msg}), 404
+
+@app.route('/vehicles/<plate>', methods=['DELETE'])
+@login_required
+@admin_required
+def vehicles_delete(plate):
+    if vehicle_manager.delete_vehicle(plate.upper()):
+        return jsonify({'success': True})
+    return jsonify({'error': 'Véhicule introuvable'}), 404
 
 
 if __name__ == '__main__':

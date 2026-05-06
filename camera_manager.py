@@ -11,6 +11,7 @@ from face_recognizer import FaceRecognizer
 import analyzer
 import tracker
 import behavior
+import plate_recognizer
 
 CAMERAS_FILE = 'cameras.json'
 
@@ -23,6 +24,7 @@ ROOMS = [
 FEATURES = {
     'face_recognition':  'Reconnaissance faciale',
     'behavior_analysis': 'Analyse comportementale',
+    'plate_recognition': 'Lecture de plaques',
 }
 
 
@@ -265,6 +267,9 @@ class CameraWorker:
                         self.results = []
                     if 'behavior_analysis' in feats:
                         behavior.submit(frame, cam_label=label)
+
+                if 'plate_recognition' in feats:
+                    plate_recognizer.submit(frame, cam_label=label)
 
         finally:
             sc.unsubscribe()
