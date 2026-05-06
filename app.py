@@ -6,6 +6,7 @@ import shutil
 import base64
 import threading
 import functools
+import numpy as np
 import cv2
 from flask import Flask, render_template, Response, request, jsonify, session, redirect, url_for, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -73,7 +74,36 @@ plate_recognizer.set_on_result_callback(vehicle_manager.update_sighting)
 _cam_mgr = CameraManager()
 
 
-def _annotate(frame, results, beh_results=None):
+def _annotate_plates(frame, plate_results):
+    """Dessine les boîtes des plaques + texte (avec n° chassis si véhicule connu)."""
+    for r in plate_results or []:
+        bbox = r.get('bbox') or [0, 0, 0, 0]
+        x, y, w, h = bbox
+        if w <= 0 or h <= 0:
+            continue
+        veh = vehicle_manager.get_vehicle(r.get('plate', ''))
+        is_known = bool(veh)
+        color = (30, 200, 220) if is_known else (30, 140, 240)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+
+        plate_txt = r.get('plate', '?')
+        chassis = (veh or {}).get('chassis', '')
+        line1 = plate_txt + (' ✔' if is_known else ' ?')
+        line2 = ('VIN ' + chassis) if chassis else ''
+        (tw1, th1), _ = cv2.getTextSize(line1, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+        (tw2, th2), _ = cv2.getTextSize(line2, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1) if line2 else ((0, 0), 0)
+        bw = max(tw1, tw2) + 12
+        bh = th1 + (th2 + 6 if line2 else 0) + 10
+        by = max(y - bh - 4, 2)
+        cv2.rectangle(frame, (x, by), (x + bw, by + bh), color, cv2.FILLED)
+        cv2.putText(frame, line1, (x + 6, by + th1 + 4),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        if line2:
+            cv2.putText(frame, line2, (x + 6, by + th1 + th2 + 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, (235, 235, 235), 1)
+
+
+def _annotate(frame, results, beh_results=None, plate_results=None):
     identified = sum(1 for (_, _, _, _, n) in results if n != "Inconnu")
     unknown    = sum(1 for (_, _, _, _, n) in results if n == "Inconnu")
     for (x, y, w, h, name) in results:
@@ -84,6 +114,7 @@ def _annotate(frame, results, beh_results=None):
         cv2.rectangle(frame, (x, ly - th - 8), (x + tw + 10, ly + 2), color, cv2.FILLED)
         cv2.putText(frame, name, (x + 5, ly - 3),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+    _annotate_plates(frame, plate_results)
     label = "Identifies: {}  Inconnus: {}".format(identified, unknown)
     (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
     cv2.rectangle(frame, (8, 8), (lw + 18, lh + 18), (20, 20, 20), cv2.FILLED)
@@ -100,13 +131,16 @@ def _annotate(frame, results, beh_results=None):
 
 
 def _generate(cam_id):
+    cam = _cam_mgr.get(cam_id, safe=True) or {}
+    cam_label = cam.get('label', cam_id)
     while True:
         frame = _cam_mgr.get_frame(cam_id)
         if frame is None:
             time.sleep(0.033)
             continue
         results = _cam_mgr.get_results(cam_id)
-        _annotate(frame, results, behavior.get_results())
+        plate_results = plate_recognizer.get_results_for_camera(cam_label)
+        _annotate(frame, results, behavior.get_results(), plate_results)
         ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 78])
         if ok:
             yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n')
@@ -476,9 +510,22 @@ def cameras_meta():
 @app.route('/plates/results')
 @login_required
 def plates_results():
+    results = []
+    for r in plate_recognizer.get_results():
+        item = dict(r)
+        veh = vehicle_manager.get_vehicle(item.get('plate', ''))
+        if veh:
+            item['matched'] = True
+            item['chassis'] = veh.get('chassis', '')
+            item['owner']   = veh.get('owner', '')
+            item['brand']   = veh.get('brand', '')
+            item['model']   = veh.get('model', '')
+        else:
+            item['matched'] = False
+        results.append(item)
     return jsonify({
         'available': plate_recognizer.is_available(),
-        'results':   plate_recognizer.get_results(),
+        'results':   results,
     })
 
 @app.route('/plates/history')
@@ -509,6 +556,43 @@ def plates_history_clear():
 @login_required
 def vehicles_list():
     return jsonify(vehicle_manager.list_vehicles())
+
+@app.route('/vehicles/extract_from_image', methods=['POST'])
+@login_required
+def vehicles_extract_from_image():
+    """Analyse une image uploadée et retourne plaque/chassis/couleur/type détectés."""
+    img_data = None
+    if request.files and 'image' in request.files:
+        img_data = request.files['image'].read()
+    elif request.is_json:
+        b64 = (request.get_json() or {}).get('image_b64', '')
+        if b64.startswith('data:'):
+            b64 = b64.split(',', 1)[-1]
+        try:
+            img_data = base64.b64decode(b64)
+        except Exception:
+            img_data = None
+    if not img_data:
+        return jsonify({'error': 'Image manquante'}), 400
+    try:
+        arr   = np.frombuffer(img_data, dtype=np.uint8)
+        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    except Exception:
+        frame = None
+    if frame is None:
+        return jsonify({'error': 'Image illisible'}), 400
+    if not plate_recognizer.is_available():
+        return jsonify({'error': 'Module OCR non disponible (easyocr)'}), 503
+    info = plate_recognizer.extract_vehicle_info(frame)
+    info['matched'] = False
+    info['existing'] = None
+    if info.get('plate'):
+        existing = vehicle_manager.get_vehicle(info['plate'])
+        if existing:
+            info['matched']  = True
+            info['existing'] = existing
+    return jsonify({'success': True, 'info': info})
+
 
 @app.route('/vehicles', methods=['POST'])
 @login_required

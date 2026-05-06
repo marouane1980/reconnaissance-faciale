@@ -36,9 +36,13 @@ _yolo_lock = threading.Lock()
 # ── Queue & résultats ─────────────────────────────────────────────────────────
 _queue        = queue.Queue(maxsize=1)
 _last_result  = []
+_per_camera   = {}    # {cam_label: [results]}
 _results_lock = threading.Lock()
 _running      = False
 _on_result_cb = None
+
+# Pattern VIN (17 caractères, exclut I, O, Q)
+_VIN_RE = re.compile(r'\b([A-HJ-NPR-Z0-9]{17})\b')
 
 # ── Plages de couleurs HSV ───────────────────────────────────────────────────
 _COLORS = [
@@ -261,6 +265,10 @@ def _worker():
             with _results_lock:
                 if results:
                     _last_result = results
+                    if cam_label:
+                        _per_camera[cam_label] = results
+                elif cam_label:
+                    _per_camera[cam_label] = []
             if _on_result_cb and results:
                 for r in results:
                     try:
@@ -298,6 +306,84 @@ def submit(frame, cam_label=''):
 def get_results():
     with _results_lock:
         return list(_last_result)
+
+
+def get_results_for_camera(cam_label):
+    with _results_lock:
+        return list(_per_camera.get(cam_label, []))
+
+
+def extract_vehicle_info(frame):
+    """Analyse une image : OCR complet → plaque + n° chassis (VIN) + couleur + type."""
+    reader = _init_reader()
+    info = {
+        'plate':     '',
+        'chassis':   '',
+        'color':     '',
+        'vtype':     '',
+        'plate_img': None,
+        'raw_text':  [],
+    }
+    if frame is None:
+        return info
+
+    color, _ = _detect_color(frame)
+    if color:
+        info['color'] = color
+    vtype, _ = _detect_vehicle_type(frame)
+    if vtype:
+        info['vtype'] = vtype
+
+    if reader is None:
+        return info
+
+    try:
+        ocr_res = reader.readtext(
+            frame,
+            allowlist='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',
+            detail=1,
+        )
+    except Exception as e:
+        print('[plate] extract OCR error:', e)
+        return info
+
+    raw_lines = []
+    plate_candidates = []
+    for box, text, conf in ocr_res:
+        clean = re.sub(r'[^A-Z0-9]', '', text.upper())
+        raw_lines.append({'text': text, 'conf': round(float(conf) * 100)})
+
+        # VIN détecté ?
+        if not info['chassis']:
+            m = _VIN_RE.search(clean)
+            if m:
+                info['chassis'] = m.group(1)
+
+        # Plaque candidate ?
+        plate_text = _clean_plate(text)
+        if plate_text:
+            plate_candidates.append((plate_text, float(conf), box))
+
+    if plate_candidates:
+        plate_candidates.sort(key=lambda r: r[1], reverse=True)
+        info['plate'] = plate_candidates[0][0]
+        # Recadre la zone de plaque pour la miniature
+        try:
+            box = plate_candidates[0][2]
+            xs = [int(p[0]) for p in box]
+            ys = [int(p[1]) for p in box]
+            x1, x2 = max(0, min(xs)), min(frame.shape[1], max(xs))
+            y1, y2 = max(0, min(ys)), min(frame.shape[0], max(ys))
+            crop = frame[y1:y2, x1:x2]
+            if crop.size > 0:
+                ok, buf = cv2.imencode('.jpg', crop, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                if ok:
+                    info['plate_img'] = 'data:image/jpeg;base64,' + base64.b64encode(buf).decode()
+        except Exception:
+            pass
+
+    info['raw_text'] = raw_lines
+    return info
 
 
 def set_on_result_callback(fn):

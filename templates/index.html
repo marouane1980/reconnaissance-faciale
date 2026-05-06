@@ -217,8 +217,8 @@
       </div>
 
       <!-- Analyse comportementale (pliable) -->
-      <button onclick="toggleSec('behav')" class="flex items-center justify-between w-full px-2 mt-4 mb-1 group">
-        <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest group-hover:text-slate-400 transition-colors">Analyse comportementale</p>
+      <button onclick="toggleSec('behav')" class="flex items-center justify-between w-full px-2 mt-4 mb-1 group gap-1">
+        <p class="text-[9px] font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap truncate group-hover:text-slate-400 transition-colors">Analyse comportementale</p>
         <svg id="arr-behav" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div id="sec-behav" class="flex flex-col gap-1">
@@ -585,11 +585,39 @@
               <span id="plateOcrStatus" class="text-amber-400/70 text-[10px]">OCR actif</span>
             </div>
           </div>
-          <div class="flex-1 overflow-auto p-5">
-            <div id="plateLiveCards" class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
-              <div class="col-span-full text-center text-slate-600 italic text-xs py-20 opacity-40">
-                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="mx-auto mb-3"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M5 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
-                <p class="text-xs">En attente de détection de plaque...</p>
+          <div class="flex-1 flex overflow-hidden">
+            <!-- Colonne gauche : véhicules détectés -->
+            <aside class="w-72 flex-shrink-0 border-r border-[#1e2035] bg-[#0c0d15] flex flex-col overflow-hidden">
+              <div class="p-4 border-b border-[#1e2035] flex flex-col gap-2">
+                <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Véhicules détectés</p>
+                <div class="grid grid-cols-3 gap-2 mt-1">
+                  <div class="bg-[#1a1b2e] rounded-lg p-2 text-center">
+                    <p class="text-[9px] text-slate-500 uppercase tracking-wider">Connus</p>
+                    <p class="text-lg font-bold text-green-400" id="liveVehKnown">0</p>
+                  </div>
+                  <div class="bg-[#1a1b2e] rounded-lg p-2 text-center">
+                    <p class="text-[9px] text-slate-500 uppercase tracking-wider">Inconnus</p>
+                    <p class="text-lg font-bold text-red-400" id="liveVehUnknown">0</p>
+                  </div>
+                  <div class="bg-[#1a1b2e] rounded-lg p-2 text-center">
+                    <p class="text-[9px] text-slate-500 uppercase tracking-wider">Total</p>
+                    <p class="text-lg font-bold text-amber-400" id="liveVehTotal">0</p>
+                  </div>
+                </div>
+              </div>
+              <div id="liveVehList" class="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                <p class="text-[11px] text-slate-600 italic text-center py-6">Aucun véhicule détecté</p>
+              </div>
+            </aside>
+
+            <!-- Centre : grille des caméras avec reconnaissance plaques -->
+            <div class="flex-1 overflow-auto p-4">
+              <div id="plateCamGrid" class="grid gap-3" style="grid-template-columns:repeat(auto-fill,minmax(360px,1fr))">
+                <div class="col-span-full text-center text-slate-600 italic text-xs py-20 opacity-40">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="mx-auto mb-3"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M5 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+                  <p class="text-xs">Aucune caméra avec reconnaissance d'immatriculation activée.</p>
+                  <p class="text-[10px] mt-1">Activez la fonctionnalité dans Système › Caméras.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -1111,6 +1139,10 @@
                   <input type="checkbox" id="camFeatBehav" checked class="accent-violet-500 w-3 h-3">
                   Analyse comportementale
                 </label>
+                <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                  <input type="checkbox" id="camFeatPlate" class="accent-amber-500 w-3 h-3">
+                  Reconnaissance d'immatriculation
+                </label>
               </div>
             </div>
 
@@ -1226,6 +1258,24 @@
         <!-- Panel: Véhicules enregistrés (formulaire) -->
         <div id="panel-vehicles" class="panel flex-1 overflow-y-auto p-5 gap-4">
           <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider" id="vehicleFormTitle">Nouveau véhicule</p>
+
+          <!-- Capture par image -->
+          <div class="gradient-border rounded-xl p-3 flex flex-col gap-2">
+            <p class="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5">
+              <i data-lucide="scan-line" class="w-3.5 h-3.5 text-amber-400"></i>
+              Capture automatique depuis image
+            </p>
+            <p class="text-[10px] text-slate-600 leading-relaxed">Extrait plaque, n° de chassis (VIN), couleur et type via OCR.</p>
+            <input type="file" id="vehicleImageInput" accept="image/*" class="hidden" onchange="onVehicleImagePicked(event)">
+            <button type="button" onclick="document.getElementById('vehicleImageInput').click()"
+              class="w-full flex items-center justify-center gap-2 bg-amber-600/15 hover:bg-amber-600/25 border border-amber-600/30 text-amber-300 text-xs font-semibold rounded-lg py-2 transition-colors">
+              <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+              <span id="vehicleImageBtnLabel">Choisir une image…</span>
+            </button>
+            <img id="vehicleImagePreview" class="hidden w-full max-h-32 object-contain rounded-lg bg-black/30" alt="">
+            <div id="vehicleExtractMsg" class="text-[10px] min-h-[12px]"></div>
+          </div>
+
           <div class="gradient-border rounded-xl p-4 flex flex-col gap-3">
             <input type="hidden" id="vehicleEditPlate">
 
@@ -1382,6 +1432,7 @@
       if (isUsers)        { loadUsers(); }
       if (isVehicles)     { loadVehicles(); openAddVehicle(); }
       if (isPlatHist)     { loadPlateHistory(); }
+      if (isPlates)       { renderPlateCamGrid(); refreshPlateResults(); }
       if (name === 'dashboard') {
         _visibleCams = new Set(_dashCamData.map(function(c){ return c.id; }));
         _gridCols = 0; setGridCols(0);
@@ -2554,7 +2605,7 @@
           : '<span class="inline-flex items-center gap-1 bg-[#1e2035] text-slate-500 border border-[#2a2b3d] text-[10px] font-semibold px-2 py-0.5 rounded-full">Arrêtée</span>';
 
         var feats = (c.features || []).map(function(f){
-          var icons = { face_recognition: '👤', behavior_analysis: '🧍' };
+          var icons = { face_recognition: '👤', behavior_analysis: '🧍', plate_recognition: '🚗' };
           return '<span class="text-[10px] bg-indigo-950/40 text-indigo-400 border border-indigo-900/30 px-1.5 py-0.5 rounded mr-1">' + (icons[f] || f) + '</span>';
         }).join('');
 
@@ -2610,6 +2661,7 @@
       document.getElementById('camProtocol').value = 'webcam';
       document.getElementById('camFeatFace').checked  = true;
       document.getElementById('camFeatBehav').checked = true;
+      document.getElementById('camFeatPlate').checked = false;
       _camEnabledState = true;
       document.getElementById('camEnabled').value = '1';
       document.getElementById('camEnabledBtn').textContent  = 'OUI';
@@ -2639,6 +2691,7 @@
       document.getElementById('camPassword').value  = '';
       document.getElementById('camFeatFace').checked  = (c.features || []).indexOf('face_recognition')  >= 0;
       document.getElementById('camFeatBehav').checked = (c.features || []).indexOf('behavior_analysis') >= 0;
+      document.getElementById('camFeatPlate').checked = (c.features || []).indexOf('plate_recognition') >= 0;
       var camRooms = c.rooms || (c.room ? [c.room] : []);
       document.querySelectorAll('.cam-room-cb').forEach(function(cb){
         cb.checked = camRooms.indexOf(cb.value) >= 0;
@@ -2663,6 +2716,7 @@
       var feats = [];
       if (document.getElementById('camFeatFace').checked)  feats.push('face_recognition');
       if (document.getElementById('camFeatBehav').checked) feats.push('behavior_analysis');
+      if (document.getElementById('camFeatPlate').checked) feats.push('plate_recognition');
 
       var data = {
         label:    document.getElementById('camLabel').value.trim(),
@@ -3290,7 +3344,7 @@
         }
         var countEl = document.getElementById('plateLiveCount');
         if (countEl) countEl.textContent = _plateResults.length;
-        renderPlateLiveCards();
+        renderLiveVehicles();
         renderPanelPlateList();
       }).catch(function(){});
 
@@ -3303,35 +3357,75 @@
       }).catch(function(){});
     }
 
-    function renderPlateLiveCards() {
-      var container = document.getElementById('plateLiveCards');
-      if (!container) return;
-      if (_plateResults.length === 0) {
-        container.innerHTML = '<div class="col-span-full text-center text-slate-600 italic text-xs py-20 opacity-40">' +
+    function renderPlateCamGrid() {
+      var grid = document.getElementById('plateCamGrid');
+      if (!grid) return;
+      var cams = (_dashCamData || []).filter(function(c){
+        return (c.features || []).indexOf('plate_recognition') >= 0;
+      });
+      if (!cams.length) {
+        grid.innerHTML = '<div class="col-span-full text-center text-slate-600 italic text-xs py-20 opacity-40">' +
           '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="mx-auto mb-3"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M5 7V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>' +
-          '<p class="text-xs">En attente de détection de plaque...</p></div>';
+          '<p class="text-xs">Aucune caméra avec reconnaissance d\'immatriculation activée.</p>' +
+          '<p class="text-[10px] mt-1">Activez la fonctionnalité dans Système › Caméras.</p></div>';
         return;
       }
-      container.innerHTML = _plateResults.map(function(r) {
-        var isKnown  = r.matched;
-        var accent   = isKnown ? 'green' : 'amber';
-        var frameImg = r.frame_img ? '<img src="' + r.frame_img + '" class="w-full object-cover" style="max-height:120px;object-fit:cover">' : '';
-        var plateImg = r.plate_img ? '<img src="' + r.plate_img + '" class="mx-auto h-8 object-contain rounded">' : '';
-        return '<div class="gradient-border rounded-xl overflow-hidden">' +
-          (frameImg ? '<div class="relative bg-black/30">' + frameImg + '</div>' : '') +
-          '<div class="p-3 flex flex-col gap-1.5">' +
-            '<div class="flex items-center justify-between">' +
-              '<span class="text-sm font-mono font-bold tracking-widest text-' + accent + '-300">' + escHtml(r.plate) + '</span>' +
-              '<span class="text-[10px] px-1.5 py-0.5 rounded-full ' + (isKnown ? 'bg-green-950/60 text-green-400' : 'bg-amber-950/60 text-amber-400') + '">' + (isKnown ? '✔ Enregistré' : '? Inconnu') + '</span>' +
+      grid.innerHTML = cams.map(function(c) {
+        var feedSrc = '/video_feed?cam_id=' + encodeURIComponent(c.id);
+        var dotCls  = c.connected ? 'bg-green-400 live-dot' : 'bg-red-500';
+        var liveLbl = c.connected ? 'LIVE' : 'OFF';
+        return '<div class="relative rounded-xl overflow-hidden bg-[#0c0d15] border border-[#1e2035]" style="aspect-ratio:16/9">' +
+          (c.connected
+            ? '<img src="' + feedSrc + '" class="absolute inset-0 w-full h-full object-cover">'
+            : '<div class="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-slate-700"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/><line x1="1" y1="1" x2="23" y2="23"/></svg><p class="text-[11px]">Déconnectée</p></div>') +
+          '<div class="absolute top-0 inset-x-0 flex items-center justify-between p-2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">' +
+            '<div class="flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-0.5">' +
+              '<span class="w-1.5 h-1.5 rounded-full ' + dotCls + ' inline-block"></span>' +
+              '<span class="text-[10px] font-semibold text-white/80">' + liveLbl + '</span>' +
             '</div>' +
-            (plateImg ? plateImg : '') +
-            '<div class="flex flex-wrap gap-1.5 mt-1 text-[10px] text-slate-500">' +
-              (r.vtype  ? '<span class="bg-[#1e2035] px-1.5 py-0.5 rounded font-medium">' + escHtml(r.vtype) + '</span>' : '') +
-              (r.color  ? '<span class="bg-[#1e2035] px-1.5 py-0.5 rounded">' + escHtml(r.color) + '</span>' : '') +
-              (r.camera ? '<span class="bg-[#1e2035] px-1.5 py-0.5 rounded">' + escHtml(r.camera) + '</span>' : '') +
-            '</div>' +
-            '<p class="text-[10px] text-slate-600">' + escHtml(r.timestamp||'') + ' · conf. ' + (r.confidence||0) + '%</p>' +
-          '</div></div>';
+            '<div class="flex items-center gap-1 bg-amber-600/70 backdrop-blur-sm rounded-full px-2 py-0.5 text-[10px] font-bold text-white">🚗 OCR</div>' +
+          '</div>' +
+          '<div class="absolute bottom-0 inset-x-0 p-2.5 bg-gradient-to-t from-black/85 to-transparent pointer-events-none">' +
+            '<p class="text-white text-xs font-semibold leading-none truncate">' + escHtml(c.label || c.id) + '</p>' +
+            '<p class="text-slate-300/70 text-[10px] mt-0.5 truncate">' + escHtml((c.rooms||[]).join(' · ') || '—') + '</p>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function renderLiveVehicles() {
+      var list = document.getElementById('liveVehList');
+      if (!list) return;
+      var known = 0, unknown = 0;
+      (_plateResults || []).forEach(function(r){ if (r.matched) known++; else unknown++; });
+      var total = (_plateResults || []).length;
+      var f = function(id, v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+      f('liveVehKnown',   known);
+      f('liveVehUnknown', unknown);
+      f('liveVehTotal',   total);
+
+      if (!total) {
+        list.innerHTML = '<p class="text-[11px] text-slate-600 italic text-center py-6">Aucun véhicule détecté</p>';
+        return;
+      }
+      list.innerHTML = (_plateResults || []).map(function(r) {
+        var isKnown = r.matched;
+        var accent  = isKnown ? 'green' : 'red';
+        var plateImg = r.plate_img ? '<img src="' + r.plate_img + '" class="h-7 object-contain rounded bg-black/30">' : '';
+        var chassis  = r.chassis || '';
+        return '<div class="bg-[#1a1b2e] rounded-lg p-2.5 flex flex-col gap-1.5 border border-' + accent + '-900/30">' +
+          '<div class="flex items-center justify-between gap-2">' +
+            '<span class="font-mono font-bold text-xs text-' + accent + '-300 tracking-widest">' + escHtml(r.plate||'?') + '</span>' +
+            '<span class="text-[9px] px-1.5 py-0.5 rounded-full ' + (isKnown ? 'bg-green-950/60 text-green-400' : 'bg-red-950/60 text-red-400') + '">' + (isKnown ? '✔ Connu' : '? Inconnu') + '</span>' +
+          '</div>' +
+          (plateImg ? '<div>' + plateImg + '</div>' : '') +
+          (chassis ? '<p class="text-[9px] font-mono text-slate-400">VIN ' + escHtml(chassis) + '</p>' : '') +
+          '<div class="flex flex-wrap gap-1 text-[9px] text-slate-500">' +
+            (r.vtype  ? '<span class="bg-[#0c0d15] px-1.5 py-0.5 rounded">' + escHtml(r.vtype) + '</span>' : '') +
+            (r.color  ? '<span class="bg-[#0c0d15] px-1.5 py-0.5 rounded">' + escHtml(r.color) + '</span>' : '') +
+            (r.camera ? '<span class="bg-[#0c0d15] px-1.5 py-0.5 rounded">' + escHtml(r.camera) + '</span>' : '') +
+          '</div>' +
+        '</div>';
       }).join('');
     }
 
@@ -3354,7 +3448,8 @@
     function onPlateCamChange(val) { /* future: filter live by cam */ }
 
     setInterval(function() {
-      if (document.getElementById('panel-plates').classList.contains('active')) {
+      if (document.getElementById('panel-plates').classList.contains('active')
+          || document.getElementById('main-plates').style.display === 'flex') {
         refreshPlateResults();
       }
     }, 1200);
@@ -3405,6 +3500,14 @@
       document.getElementById('vehicleSubmitLabel').textContent = 'Enregistrer le véhicule';
       document.getElementById('vehicleMsg').textContent = '';
       document.getElementById('vehiclePlate').removeAttribute('readonly');
+      var prev = document.getElementById('vehicleImagePreview');
+      if (prev) { prev.src=''; prev.classList.add('hidden'); }
+      var fileInput = document.getElementById('vehicleImageInput');
+      if (fileInput) fileInput.value = '';
+      var lbl = document.getElementById('vehicleImageBtnLabel');
+      if (lbl) lbl.textContent = 'Choisir une image…';
+      var em = document.getElementById('vehicleExtractMsg');
+      if (em) { em.textContent=''; em.className='text-[10px] min-h-[12px]'; }
     }
 
     function editVehicle(v) {
@@ -3467,6 +3570,73 @@
         .then(function(r){return r.json();})
         .then(function(d){ if (d.success) loadVehicles(); })
         .catch(function(){});
+    }
+
+    function onVehicleImagePicked(ev) {
+      var file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      var msg     = document.getElementById('vehicleExtractMsg');
+      var preview = document.getElementById('vehicleImagePreview');
+      var label   = document.getElementById('vehicleImageBtnLabel');
+      label.textContent = file.name;
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+
+      msg.textContent   = 'Analyse en cours… (OCR)';
+      msg.className     = 'text-[10px] min-h-[12px] text-amber-400';
+
+      var fd = new FormData();
+      fd.append('image', file);
+      fetch('/vehicles/extract_from_image', { method: 'POST', body: fd })
+        .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, data: j }; }); })
+        .then(function(res) {
+          if (!res.ok) {
+            msg.textContent = res.data.error || 'Erreur lors de l\'analyse';
+            msg.className = 'text-[10px] min-h-[12px] text-red-400';
+            return;
+          }
+          var info = res.data.info || {};
+          var fields = {
+            vehiclePlate:   info.plate,
+            vehicleChassis: info.chassis,
+            vehicleColor:   info.color,
+          };
+          Object.keys(fields).forEach(function(id){
+            var v = fields[id]; if (!v) return;
+            var el = document.getElementById(id);
+            if (el && !el.value) el.value = v;
+          });
+          if (info.vtype) {
+            var sel = document.getElementById('vehicleType');
+            if (sel && !sel.value) {
+              for (var i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === info.vtype) { sel.selectedIndex = i; break; }
+              }
+            }
+          }
+          if (res.data.info && res.data.info.matched) {
+            msg.textContent = '⚠ Véhicule déjà enregistré : ' + (info.plate || '');
+            msg.className = 'text-[10px] min-h-[12px] text-amber-400';
+            if (info.existing) editVehicle(info.existing);
+          } else {
+            var parts = [];
+            if (info.plate)   parts.push('Plaque : ' + info.plate);
+            if (info.chassis) parts.push('VIN : ' + info.chassis);
+            if (info.color)   parts.push('Couleur : ' + info.color);
+            if (info.vtype)   parts.push('Type : ' + info.vtype);
+            msg.textContent = parts.length ? ('✓ ' + parts.join(' · ')) : 'Aucune information détectée';
+            msg.className = 'text-[10px] min-h-[12px] ' + (parts.length ? 'text-green-400' : 'text-amber-400');
+          }
+        })
+        .catch(function() {
+          msg.textContent = 'Erreur réseau';
+          msg.className = 'text-[10px] min-h-[12px] text-red-400';
+        });
     }
 
     // ── Historique plaques ────────────────────────────
