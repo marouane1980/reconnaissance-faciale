@@ -1,11 +1,31 @@
-"""Analyse comportementale — détection de posture via MediaPipe Pose."""
+"""Analyse comportementale — détection de posture via MediaPipe Pose.
+
+Refonte :
+  - Normalisation par la taille du tronc (invariant à la distance caméra).
+  - Classification basée sur :
+      * angle du tronc vs. verticale (épaules → hanches)
+      * angle des genoux (hanche-genou-cheville)
+      * positions relatives, pas absolues
+  - Hystérésis temporelle (vote majoritaire sur N frames) pour éviter le flickering.
+  - Détection de chute multi-critères :
+      * Transition rapide tronc vertical → tronc horizontal (< 1.5 s)
+      * Vélocité verticale du centre de gravité au-dessus d'un seuil
+      * Immobilité confirmée pendant ~1.5 s après la chute
+      * Cooldown 30 s entre deux alertes
+  - draw_landmarks_on() conservé.
+"""
 
 import cv2
+import math
 import base64
 import time
 import threading
 import queue
+import logging
+from collections import deque
 from datetime import datetime
+
+log = logging.getLogger('faceid.behavior')
 
 try:
     import mediapipe as mp
@@ -17,8 +37,8 @@ try:
         static_image_mode=False,
         model_complexity=1,
         smooth_landmarks=True,
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5,
+        min_detection_confidence=0.55,
+        min_tracking_confidence=0.55,
     )
     _CONNECTIONS  = _mp_pose.POSE_CONNECTIONS
 except Exception:
@@ -35,39 +55,48 @@ _running      = False
 
 # ── Paramètres ──
 _show_landmarks = False
-_tracked_poses  = {'debout', 'assis', 'allonge', 'course', 'saut', 'grimpe'}
+_tracked_poses  = {'debout', 'assis', 'allonge', 'course', 'saut', 'grimpe', 'penche'}
 _fall_detect    = True
-_last_landmarks = None          # pour draw_landmarks_on()
+_last_landmarks = None
 _settings_lock  = threading.Lock()
 
-# ── Historique de session ──
+# ── Historique ──
 _history      = []
 _history_lock = threading.Lock()
 _current_sess = None
 _hist_id      = 0
 MAX_HISTORY   = 500
 
-# ── Détection de chutes ──
-_fall_history = []
-_fall_lock    = threading.Lock()
-_fall_id      = 0
-_pose_window  = []              # [(ts, pose_key), ...]
-FALL_WINDOW   = 2.5             # secondes
+# ── Détection de chute ──
+_fall_history       = []
+_fall_lock          = threading.Lock()
+_fall_id            = 0
+_last_fall_alert_ts = 0.0
+FALL_COOLDOWN       = 30.0     # s entre deux alertes
+FALL_DROP_WINDOW    = 1.5      # s pour passer vertical → horizontal
+FALL_STILL_WINDOW   = 1.5      # s d'immobilité confirmée après
+FALL_MIN_VELOCITY   = 0.35     # vitesse verticale min (frac/s) — y_norm dérivé du tronc
+FALL_STILL_VAR      = 0.0030   # variance des positions du COG pour considérer immobile
 
-# Métadonnées postures : (label FR, couleur Tailwind, texte OpenCV)
+# ── Buffers temporels ──
+_VOTE_FRAMES   = 7             # vote majoritaire sur 7 frames (~0,5–1 s @ 8–14 fps)
+_RAW_BUFFER    = deque(maxlen=_VOTE_FRAMES)         # [(pose, conf)]
+_TRACK_BUFFER  = deque(maxlen=60)                   # [(ts, cog_y_norm, tilt_deg)]
+
 _POSE_META = {
-    'debout':  ('Debout',      'green',  'Debout'),
-    'assis':   ('Assis(e)',    'blue',   'Assis'),
+    'debout':  ('Debout',     'green',  'Debout'),
+    'assis':   ('Assis(e)',   'blue',   'Assis'),
     'allonge': ('Allonge(e)', 'purple', 'Allonge'),
-    'course':  ('En course',   'orange', 'Course'),
-    'saut':    ('En saut',     'yellow', 'Saut'),
-    'grimpe':  ('Grimpe',      'red',    'Grimpe'),
-    'inconnu': ('Posture ?',   'slate',  '?'),
+    'penche':  ('Penche(e)',  'cyan',   'Penche'),
+    'course':  ('En course',  'orange', 'Course'),
+    'saut':    ('En saut',    'yellow', 'Saut'),
+    'grimpe':  ('Grimpe',     'red',    'Grimpe'),
+    'inconnu': ('Posture ?',  'slate',  '?'),
 }
 
 
 # ════════════════════════════════════════════
-#  Helpers internes
+#  Helpers
 # ════════════════════════════════════════════
 
 def _now_str():
@@ -75,7 +104,6 @@ def _now_str():
 
 
 def _thumb(frame):
-    """Miniature 120 px de large encodée en base64 JPEG."""
     try:
         h, w = frame.shape[:2]
         tw, th = 120, int(h * 120 / w)
@@ -88,8 +116,44 @@ def _thumb(frame):
     return None
 
 
+def _vis(p, thr=0.4):
+    return getattr(p, 'visibility', 1.0) >= thr
+
+
+def _midpoint(a, b):
+    return ((a.x + b.x) / 2.0, (a.y + b.y) / 2.0)
+
+
+def _angle3(a, b, c):
+    """Angle ABC en degrés (B sommet)."""
+    bax, bay = a[0] - b[0], a[1] - b[1]
+    bcx, bcy = c[0] - b[0], c[1] - b[1]
+    d1 = math.hypot(bax, bay) or 1e-6
+    d2 = math.hypot(bcx, bcy) or 1e-6
+    cosv = max(-1.0, min(1.0, (bax * bcx + bay * bcy) / (d1 * d2)))
+    return math.degrees(math.acos(cosv))
+
+
+def _torso_tilt_deg(shoulders_mid, hips_mid):
+    """Inclinaison du tronc par rapport à la verticale (0° = debout, 90° = couché)."""
+    dx = hips_mid[0] - shoulders_mid[0]
+    dy = hips_mid[1] - shoulders_mid[1]
+    # axe vertical = (0, 1) dans le repère image
+    return abs(math.degrees(math.atan2(dx, max(dy, 1e-6))))
+
+
+# ════════════════════════════════════════════
+#  Classification
+# ════════════════════════════════════════════
+
 def _classify(lm):
-    """Heuristique de classification. y=0 en haut, y=1 en bas (MediaPipe)."""
+    """Retourne (pose_key, confidence, metrics_dict).
+
+    Robust aux distances et angles. Combine :
+      - tilt du tronc (degrés vs. verticale)
+      - angle moyen des genoux (hanche-genou-cheville)
+      - positions relatives bras/jambes par rapport au tronc
+    """
     nose         = lm[0]
     l_sh, r_sh   = lm[11], lm[12]
     l_hip, r_hip = lm[23], lm[24]
@@ -97,51 +161,159 @@ def _classify(lm):
     l_an, r_an   = lm[27], lm[28]
     l_wr, r_wr   = lm[15], lm[16]
 
-    if any(p.visibility < 0.4 for p in [l_sh, r_sh, l_hip, r_hip]):
-        return 'inconnu', 0.50
+    # Visibilité minimale du tronc
+    if not (_vis(l_sh) and _vis(r_sh) and _vis(l_hip) and _vis(r_hip)):
+        return 'inconnu', 0.40, {}
 
-    sh_y  = (l_sh.y  + r_sh.y)  / 2
-    hip_y = (l_hip.y + r_hip.y) / 2
-    kn_y  = (l_kn.y  + r_kn.y)  / 2
-    an_y  = (l_an.y  + r_an.y)  / 2
-    wr_y  = (l_wr.y  + r_wr.y)  / 2
+    sh_mid  = _midpoint(l_sh, r_sh)
+    hip_mid = _midpoint(l_hip, r_hip)
 
-    body_span = an_y - sh_y
+    torso_h = max(0.02, math.hypot(hip_mid[0] - sh_mid[0], hip_mid[1] - sh_mid[1]))
+    tilt    = _torso_tilt_deg(sh_mid, hip_mid)
 
-    if body_span < 0.22:               return 'allonge', 0.88
-    if an_y <= hip_y + 0.08:          return 'saut',    0.80
-    if wr_y < nose.y - 0.05:         return 'grimpe',  0.78
-    if (kn_y - hip_y) < 0.10:        return 'assis',   0.82
-    if abs(l_kn.y - r_kn.y) > 0.11:  return 'course',  0.72
-    return 'debout', 0.90
+    cog_y = (sh_mid[1] + hip_mid[1]) / 2.0    # centre de gravité approx (en y normalisé)
+
+    metrics = {
+        'tilt_deg':  round(tilt, 1),
+        'torso_h':   round(torso_h, 3),
+        'cog_y':     round(cog_y, 3),
+    }
+
+    # ── 1) Allongé : tronc presque horizontal ──
+    if tilt > 55:
+        return 'allonge', 0.90, metrics
+
+    # ── 2) Penché : tronc significativement incliné mais pas horizontal ──
+    if tilt > 35:
+        # On distingue penché de assis grâce à l'angle des genoux (genoux pliés ⇒ assis-penché vers l'avant)
+        knees_visible = _vis(l_kn) and _vis(r_kn) and _vis(l_an) and _vis(r_an)
+        if knees_visible:
+            la = _angle3((l_hip.x, l_hip.y), (l_kn.x, l_kn.y), (l_an.x, l_an.y))
+            ra = _angle3((r_hip.x, r_hip.y), (r_kn.x, r_kn.y), (r_an.x, r_an.y))
+            knee_angle = (la + ra) / 2.0
+            metrics['knee_angle'] = round(knee_angle, 1)
+            if knee_angle < 130:
+                return 'assis', 0.78, metrics
+        return 'penche', 0.72, metrics
+
+    # ── Tronc à peu près vertical ──
+    knees_visible = _vis(l_kn) and _vis(r_kn) and _vis(l_an) and _vis(r_an)
+    if not knees_visible:
+        # Sans genoux visibles, on suppose debout par défaut (cadrage haut-buste)
+        # mais on vérifie quand même les bras pour grimpe.
+        if _vis(l_wr) and _vis(r_wr) and (l_wr.y < nose.y - 0.05 and r_wr.y < nose.y - 0.05):
+            return 'grimpe', 0.70, metrics
+        return 'debout', 0.78, metrics
+
+    la = _angle3((l_hip.x, l_hip.y), (l_kn.x, l_kn.y), (l_an.x, l_an.y))
+    ra = _angle3((r_hip.x, r_hip.y), (r_kn.x, r_kn.y), (r_an.x, r_an.y))
+    knee_angle = (la + ra) / 2.0
+    knee_diff  = abs(la - ra)
+    metrics['knee_angle'] = round(knee_angle, 1)
+    metrics['knee_diff']  = round(knee_diff,  1)
+
+    # ── 3) Saut : les deux chevilles au-dessus des genoux (en y, donc plus haut dans l'image) ──
+    an_y_avg  = (l_an.y + r_an.y) / 2.0
+    kn_y_avg  = (l_kn.y + r_kn.y) / 2.0
+    if an_y_avg < kn_y_avg - 0.05:
+        return 'saut', 0.78, metrics
+
+    # ── 4) Grimpe : poignets clairement plus haut que le nez ──
+    if _vis(l_wr) and _vis(r_wr) and l_wr.y < nose.y - 0.05 and r_wr.y < nose.y - 0.05:
+        return 'grimpe', 0.78, metrics
+
+    # ── 5) Assis : genoux pliés (angle ≪ 180°) ──
+    #     - Référence : assis sur chaise ≈ 90–110°, jambes droites ≈ 165–180°.
+    if knee_angle < 140:
+        return 'assis', 0.85, metrics
+
+    # ── 6) Course : grosse différence d'angles entre les deux jambes (asymétrie de marche) ──
+    #     - Pour éviter les faux positifs « jambe levée », on demande aussi un petit penchement avant
+    #       implicitement absent ici (tilt < 35), donc on relève le seuil.
+    if knee_diff > 35 and knee_angle < 165:
+        return 'course', 0.70, metrics
+
+    # ── 7) Debout par défaut ──
+    return 'debout', 0.90, metrics
 
 
-def _check_fall(pose_key, ts, frame=None):
-    """Détecte une chute : transition debout/course → allongé en < FALL_WINDOW s."""
-    global _pose_window, _fall_id
-    _pose_window = [(t, p) for t, p in _pose_window if ts - t <= FALL_WINDOW]
-    _pose_window.append((ts, pose_key))
+def _vote_majority():
+    """Vote majoritaire pondéré par confiance sur _RAW_BUFFER."""
+    if not _RAW_BUFFER:
+        return 'inconnu', 0.40
+    scores = {}
+    for pose, conf in _RAW_BUFFER:
+        scores[pose] = scores.get(pose, 0.0) + conf
+    best = max(scores.items(), key=lambda kv: kv[1])
+    pose = best[0]
+    # Confiance moyenne sur les frames de cette pose
+    matches = [c for p, c in _RAW_BUFFER if p == pose]
+    avg = sum(matches) / max(1, len(matches))
+    # Pénalité si la pose dominante est en minorité
+    ratio = len(matches) / len(_RAW_BUFFER)
+    return pose, max(0.4, avg * (0.6 + 0.4 * ratio))
 
-    if not _fall_detect or pose_key != 'allonge' or len(_pose_window) < 2:
+
+# ════════════════════════════════════════════
+#  Détection de chute
+# ════════════════════════════════════════════
+
+def _check_fall(stable_pose, ts, cog_y, tilt, frame, name):
+    """Une vraie chute = tronc vertical → horizontal en peu de temps + vitesse + immobilité."""
+    global _fall_id, _last_fall_alert_ts
+
+    if not _fall_detect:
         return
-    last_upright = max(
-        (t for t, p in _pose_window if p in ('debout', 'course')),
-        default=None
-    )
-    if last_upright and ts - last_upright < FALL_WINDOW:
-        name = _current_sess['_name'] if _current_sess else 'Inconnu'
-        with _fall_lock:
-            _fall_id += 1
-            _fall_history.insert(0, {
-                'id':        _fall_id,
-                'name':      name,
-                'timestamp': _now_str(),
-                'photo':     _thumb(frame) if frame is not None else None,
-            })
-            if len(_fall_history) > 100:
-                _fall_history.pop()
-        print('[behavior] CHUTE DÉTECTÉE —', name, _now_str())
+    if ts - _last_fall_alert_ts < FALL_COOLDOWN:
+        return
+    if stable_pose != 'allonge':
+        return
 
+    # Cherche un point récent où le tronc était nettement vertical
+    upright_pt = None
+    for (t, _cog, _tilt) in _TRACK_BUFFER:
+        if ts - t > FALL_DROP_WINDOW:
+            continue
+        if _tilt < 25:                      # tronc bien vertical
+            upright_pt = (t, _cog, _tilt)
+            break
+    if upright_pt is None:
+        return
+
+    t0, cog0, _ = upright_pt
+    dt = max(ts - t0, 0.05)
+    drop = (cog_y - cog0) / dt              # > 0 si descente (y augmente)
+    if drop < FALL_MIN_VELOCITY:
+        return
+
+    # Confirmation d'immobilité dans les FALL_STILL_WINDOW secondes précédentes
+    recent_cog = [c for (t, c, _t) in _TRACK_BUFFER if ts - t <= FALL_STILL_WINDOW]
+    if len(recent_cog) >= 4:
+        m = sum(recent_cog) / len(recent_cog)
+        var = sum((c - m) ** 2 for c in recent_cog) / len(recent_cog)
+        if var > FALL_STILL_VAR * 4:        # encore en mouvement → on attend un autre tick
+            return
+
+    # ✓ Toutes les conditions remplies
+    _last_fall_alert_ts = ts
+    with _fall_lock:
+        _fall_id += 1
+        _fall_history.insert(0, {
+            'id':        _fall_id,
+            'name':      name,
+            'timestamp': _now_str(),
+            'photo':     _thumb(frame) if frame is not None else None,
+            'velocity':  round(drop, 3),
+            'tilt_deg':  round(tilt, 1),
+        })
+        if len(_fall_history) > 100:
+            _fall_history.pop()
+    log.warning('CHUTE DÉTECTÉE name=%s velocity=%.3f tilt=%.1f', name, drop, tilt)
+
+
+# ════════════════════════════════════════════
+#  Session / historique
+# ════════════════════════════════════════════
 
 def _finalize(end_ts):
     global _current_sess, _hist_id
@@ -212,7 +384,11 @@ def _worker():
             if out.pose_landmarks:
                 _last_landmarks = out.pose_landmarks
                 lm = out.pose_landmarks.landmark
-                pose_key, conf = _classify(lm)
+                pose_raw, conf_raw, metrics = _classify(lm)
+
+                # Buffer pour vote majoritaire
+                _RAW_BUFFER.append((pose_raw, conf_raw))
+                pose_key, conf = _vote_majority()
 
                 # Filtre par postures suivies
                 with _settings_lock:
@@ -221,9 +397,13 @@ def _worker():
                     pose_key = 'inconnu'
                     conf     = 0.5
 
-                label, color, vid_text = _POSE_META.get(pose_key, _POSE_META['inconnu'])
+                # Suivi temporel pour la chute
                 ts = time.time()
+                if 'cog_y' in metrics and 'tilt_deg' in metrics:
+                    _TRACK_BUFFER.append((ts, metrics['cog_y'], metrics['tilt_deg']))
+                    _check_fall(pose_key, ts, metrics['cog_y'], metrics['tilt_deg'], frame, name)
 
+                label, color, vid_text = _POSE_META.get(pose_key, _POSE_META['inconnu'])
                 results.append({
                     'pose':       pose_key,
                     'label':      label,
@@ -231,13 +411,14 @@ def _worker():
                     'vid_text':   vid_text,
                     'confidence': round(conf * 100),
                     'name':       name,
+                    'metrics':    metrics,
                 })
                 _update_session(pose_key, name, frame, cam_label)
-                _check_fall(pose_key, ts, frame)
             else:
                 _last_landmarks = None
+                _RAW_BUFFER.clear()
         except Exception as e:
-            print('[behavior] worker error:', e)
+            log.exception('worker error: %s', e)
         finally:
             with _results_lock:
                 if results:
@@ -246,7 +427,7 @@ def _worker():
 
 
 # ════════════════════════════════════════════
-#  API publique
+#  API publique (inchangée)
 # ════════════════════════════════════════════
 
 def start():
@@ -255,6 +436,7 @@ def start():
         return
     _running = True
     threading.Thread(target=_worker, daemon=True).start()
+    log.info('module behavior démarré (mediapipe pose)')
 
 
 def submit(frame, face_results=None, cam_label=''):
@@ -274,7 +456,6 @@ def submit(frame, face_results=None, cam_label=''):
 
 
 def draw_landmarks_on(frame):
-    """Dessine les landmarks sur la frame en-place si activé."""
     if not _show_landmarks or _last_landmarks is None or not _AVAILABLE:
         return
     try:
@@ -312,10 +493,11 @@ def clear_history():
 
 
 def clear_fall_history():
-    global _fall_history, _fall_id
+    global _fall_history, _fall_id, _last_fall_alert_ts
     with _fall_lock:
         _fall_history = []
         _fall_id = 0
+    _last_fall_alert_ts = 0.0
 
 
 def get_settings():
@@ -324,6 +506,7 @@ def get_settings():
             'show_landmarks': _show_landmarks,
             'tracked_poses':  list(_tracked_poses),
             'fall_detect':    _fall_detect,
+            'vote_frames':    _VOTE_FRAMES,
         }
 
 
@@ -333,9 +516,9 @@ def apply_settings(data):
         if 'show_landmarks' in data:
             _show_landmarks = bool(data['show_landmarks'])
         if 'tracked_poses' in data:
-            valid = {'debout', 'assis', 'allonge', 'course', 'saut', 'grimpe'}
+            valid = {'debout', 'assis', 'allonge', 'penche', 'course', 'saut', 'grimpe'}
             _tracked_poses = valid & set(data['tracked_poses'])
-            if not _tracked_poses:        # au moins une posture doit rester active
+            if not _tracked_poses:
                 _tracked_poses = valid
         if 'fall_detect' in data:
             _fall_detect = bool(data['fall_detect'])

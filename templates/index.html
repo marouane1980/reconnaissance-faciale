@@ -1095,6 +1095,7 @@
               <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none"><input type="checkbox" id="tp-course"  checked class="accent-violet-500 w-3 h-3"> 🏃 Course</label>
               <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none"><input type="checkbox" id="tp-saut"    checked class="accent-violet-500 w-3 h-3"> ⬆️ Saut</label>
               <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none"><input type="checkbox" id="tp-grimpe"  checked class="accent-violet-500 w-3 h-3"> 🧗 Grimpe</label>
+              <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer select-none"><input type="checkbox" id="tp-penche"  checked class="accent-violet-500 w-3 h-3"> 🙇 Penché(e)</label>
             </div>
             <button onclick="saveBehaviorSettings()" id="saveBehavBtn"
               class="w-full bg-violet-600/20 hover:bg-violet-600/30 border border-violet-600/40 text-violet-400 text-xs font-semibold rounded-lg py-2 transition-colors">
@@ -1272,6 +1273,7 @@
               <button onclick="setBehavFilter('course')"  id="bfilt-course"  class="hf-btn text-left text-[11px] py-1.5 px-3 rounded-lg font-medium transition-colors">🏃 En course</button>
               <button onclick="setBehavFilter('saut')"    id="bfilt-saut"    class="hf-btn text-left text-[11px] py-1.5 px-3 rounded-lg font-medium transition-colors">⬆️ En saut</button>
               <button onclick="setBehavFilter('grimpe')"  id="bfilt-grimpe"  class="hf-btn text-left text-[11px] py-1.5 px-3 rounded-lg font-medium transition-colors">🧗 Grimpe</button>
+              <button onclick="setBehavFilter('penche')"  id="bfilt-penche"  class="hf-btn text-left text-[11px] py-1.5 px-3 rounded-lg font-medium transition-colors">🙇 Penché(e)</button>
             </div>
           </div>
 
@@ -1889,7 +1891,7 @@
     //  ANALYSE COMPORTEMENTALE — LIVE
     // ══════════════════════════════════════════
     var POSE_ICONS = {
-      debout:'🧍', assis:'🪑', allonge:'🛌', course:'🏃', saut:'⬆️', grimpe:'🧗', inconnu:'❓'
+      debout:'🧍', assis:'🪑', allonge:'🛌', penche:'🙇', course:'🏃', saut:'⬆️', grimpe:'🧗', inconnu:'❓'
     };
     var POSE_COLORS = {
       green:'text-green-400', blue:'text-blue-400', purple:'text-purple-400',
@@ -1979,7 +1981,7 @@
     }
 
     function saveBehaviorSettings() {
-      var poses = ['debout','assis','allonge','course','saut','grimpe'].filter(function(p){
+      var poses = ['debout','assis','allonge','penche','course','saut','grimpe'].filter(function(p){
         var cb = document.getElementById('tp-' + p);
         return cb && cb.checked;
       });
@@ -2018,7 +2020,7 @@
         var cb = document.getElementById('tp-' + p);
         if (cb) cb.checked = true;
       });
-      ['debout','assis','allonge','course','saut','grimpe'].forEach(function(p){
+      ['debout','assis','allonge','penche','course','saut','grimpe'].forEach(function(p){
         var cb = document.getElementById('tp-' + p);
         if (cb && d.tracked_poses && d.tracked_poses.indexOf(p) === -1) cb.checked = false;
       });
