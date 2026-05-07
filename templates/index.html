@@ -134,9 +134,50 @@
     /* ── Camera sidebar visibility row ── */
     .camvis-row { transition: background .12s ease, opacity .12s ease; }
     .camvis-row.hidden-cam { opacity:.38; }
+    /* ── Toasts ── */
+    #toastWrap { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast {
+      pointer-events: auto;
+      min-width: 240px;
+      max-width: 380px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #f8fafc;
+      background: #1a1b2e;
+      border: 1px solid #2a2b3d;
+      box-shadow: 0 10px 25px rgba(0,0,0,.5);
+      display: flex; align-items: center; gap: 10px;
+      animation: toastIn .25s ease;
+    }
+    .toast.success { border-color: rgba(16,185,129,.45); background: linear-gradient(180deg,#1a1b2e,#10221b); }
+    .toast.error   { border-color: rgba(239,68,68,.45);  background: linear-gradient(180deg,#1a1b2e,#22151a); }
+    .toast.warn    { border-color: rgba(245,158,11,.45); background: linear-gradient(180deg,#1a1b2e,#23200f); }
+    .toast.info    { border-color: rgba(99,102,241,.45); background: linear-gradient(180deg,#1a1b2e,#161728); }
+    .toast .x { margin-left: auto; cursor: pointer; opacity: .55; }
+    .toast .x:hover { opacity: 1; }
+    @keyframes toastIn { from { transform: translateX(20px); opacity: 0 } to { transform: translateX(0); opacity: 1 } }
+
+    /* ── OCR loading indicator ── */
+    #ocrIndicator {
+      position: fixed; top: 12px; right: 16px; z-index: 9000;
+      display: none; align-items: center; gap: 8px;
+      padding: 6px 12px; border-radius: 999px;
+      background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.35);
+      color: #fcd34d; font-size: 11px; font-weight: 600;
+      backdrop-filter: blur(8px);
+    }
+    #ocrIndicator .spin { width: 10px; height: 10px; border: 2px solid rgba(252,211,77,.3); border-top-color: #fcd34d; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg) } }
   </style>
 </head>
 <body class="bg-[#0c0d15] text-slate-300 h-screen flex overflow-hidden">
+
+  <!-- Toasts -->
+  <div id="toastWrap"></div>
+  <!-- OCR loading -->
+  <div id="ocrIndicator"><span class="spin"></span> Chargement OCR…</div>
 
   <!-- ══════════════════════════════════════════
        SIDEBAR
@@ -369,6 +410,12 @@
             <i data-lucide="table-2" class="w-4 h-4 text-indigo-400 flex-shrink-0"></i>
             <h2 class="text-sm font-semibold text-white">Journal des apparitions</h2>
             <span class="bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 text-[10px] font-bold px-2 py-0.5 rounded-full" id="historyCount">0</span>
+            <div class="relative ml-3">
+              <i data-lucide="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600"></i>
+              <input id="histSearch" type="text" placeholder="Rechercher (nom, caméra, date…)"
+                oninput="onHistSearch(this.value)"
+                class="bg-[#0c0d15] border border-[#2a2b3d] rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 outline-none focus:border-indigo-500 placeholder-slate-600 w-64">
+            </div>
             <div class="ml-auto flex items-center gap-2">
               <button onclick="loadHistory()" class="flex items-center gap-1.5 bg-[#1e2035] hover:bg-[#2a2b3d] text-slate-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
                 <i data-lucide="refresh-cw" class="w-3 h-3"></i> Actualiser
@@ -1178,6 +1225,11 @@
             </div>
             <input type="hidden" id="camEnabled" value="1">
 
+            <button onclick="testCam()" id="testCamBtn"
+              class="w-full flex items-center justify-center gap-2 bg-amber-600/15 hover:bg-amber-600/25 border border-amber-600/30 text-amber-300 text-xs font-semibold rounded-lg py-2 transition-colors">
+              <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+              Tester la connexion
+            </button>
             <button onclick="saveCam()" id="saveCamBtn"
               class="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90 text-white font-semibold rounded-lg py-2.5 text-xs transition-all flex items-center justify-center gap-2">
               <i data-lucide="save" class="w-3.5 h-3.5"></i>
@@ -2242,10 +2294,16 @@
       }).catch(function(){});
     }
 
+    function onHistSearch(v) {
+      _histFilter.q = (v || '').trim();
+      renderHistory();
+    }
+
     function renderHistory() {
       var q     = _histFilter.q.toLowerCase();
       var data  = _historyData.filter(function(r) {
-        var mQ     = !q || r.name.toLowerCase().indexOf(q) >= 0;
+        var hay = ((r.name||'') + ' ' + (r.camera||'') + ' ' + (r.first_seen||'') + ' ' + (r.last_seen||'')).toLowerCase();
+        var mQ     = !q || hay.indexOf(q) >= 0;
         var mS     = _histFilter.status === 'all' || r.status === _histFilter.status;
         var mI     = _histFilter.ident  === 'all'
                   || (_histFilter.ident === 'known'   && r.name !== 'Inconnu')
@@ -2489,6 +2547,50 @@
     function escHtml(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
+
+    // ── Toast helper ──
+    function toast(msg, kind) {
+      kind = kind || 'info';
+      var wrap = document.getElementById('toastWrap');
+      if (!wrap) return;
+      var el = document.createElement('div');
+      el.className = 'toast ' + kind;
+      var icon = ({success:'✓', error:'✕', warn:'⚠', info:'ℹ'})[kind] || 'ℹ';
+      el.innerHTML = '<span>' + icon + '</span><span style="flex:1">' + escHtml(msg) + '</span>'
+                   + '<span class="x" onclick="this.parentElement.remove()">×</span>';
+      wrap.appendChild(el);
+      setTimeout(function(){
+        el.style.transition = 'opacity .3s';
+        el.style.opacity = '0';
+        setTimeout(function(){ el.remove(); }, 300);
+      }, kind === 'error' ? 6000 : 3500);
+    }
+    window.toast = toast;
+
+    // ── OCR readiness indicator ──
+    (function pollOcrReady() {
+      var ind = document.getElementById('ocrIndicator');
+      var shown = false, ready = false, lastMsg = false;
+      function tick() {
+        fetch('/plates/status').then(function(r){return r.json();}).then(function(d){
+          if (!d.available) {
+            if (ind) ind.style.display = 'none';
+            return;
+          }
+          if (!d.ready) {
+            if (ind && !shown) { ind.style.display = 'flex'; shown = true; }
+          } else {
+            if (ind) ind.style.display = 'none';
+            if (!ready && lastMsg) toast('OCR plaques prêt', 'success');
+            ready = true; lastMsg = true;
+            return;
+          }
+          lastMsg = true;
+          setTimeout(tick, 2500);
+        }).catch(function(){ setTimeout(tick, 4000); });
+      }
+      tick();
+    })();
 
     document.getElementById('nameInput').addEventListener('keypress', function(e) {
       if (e.key === 'Enter') startWizard();
@@ -2782,6 +2884,50 @@
       onCamProtocolChange();
     }
 
+    function _camFormPayload() {
+      var proto = document.getElementById('camProtocol').value;
+      var url   = (proto === 'webcam')
+                    ? document.getElementById('camUrl').value.trim() || '0'
+                    : document.getElementById('camUrlFull').value.trim();
+      return {
+        protocol: proto,
+        url:      url,
+        username: document.getElementById('camUsername').value.trim(),
+        password: document.getElementById('camPassword').value,
+      };
+    }
+
+    function testCam() {
+      var btn = document.getElementById('testCamBtn');
+      var msg = document.getElementById('camFormMsg');
+      btn.disabled = true;
+      var orig = btn.innerHTML;
+      btn.innerHTML = '<span class="spin" style="width:10px;height:10px;border:2px solid rgba(252,211,77,.3);border-top-color:#fcd34d;border-radius:50%;display:inline-block;animation:spin 1s linear infinite"></span> Test en cours…';
+      msg.textContent = '';
+      fetch('/cameras/test', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify(_camFormPayload()),
+      })
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          btn.disabled = false; btn.innerHTML = orig;
+          if (d.success) {
+            toast('Connexion OK · ' + d.width + '×' + d.height, 'success');
+            msg.textContent = '✓ Connexion réussie (' + d.width + '×' + d.height + ')';
+            msg.className = 'text-[11px] min-h-[14px] text-green-400';
+          } else {
+            toast(d.error || 'Connexion impossible', 'error');
+            msg.textContent = '✕ ' + (d.error || 'Connexion impossible');
+            msg.className = 'text-[11px] min-h-[14px] text-red-400';
+          }
+        })
+        .catch(function(){
+          btn.disabled = false; btn.innerHTML = orig;
+          toast('Erreur réseau', 'error');
+        });
+    }
+
     function saveCam() {
       var id       = document.getElementById('camEditId').value;
       var proto    = document.getElementById('camProtocol').value;
@@ -2848,7 +2994,7 @@
       if (!confirm('Supprimer la caméra "' + name + '" ?')) return;
       fetch('/cameras/' + encodeURIComponent(id), {method:'DELETE'})
       .then(function(r){ return r.json(); })
-      .then(function(d){ if (d.success) { loadCameras(); resetCamForm(); } else alert(d.error); });
+      .then(function(d){ if (d.success) { toast('Caméra enregistrée', 'success'); loadCameras(); resetCamForm(); } else toast(d.error || 'Erreur', 'error'); });
     }
 
     // ── Session utilisateur ──
@@ -2927,7 +3073,7 @@
       if (!confirm('Supprimer l\'utilisateur ' + username + ' ?')) return;
       fetch('/users/' + encodeURIComponent(username), {method:'DELETE'})
       .then(function(r){return r.json();})
-      .then(function(d){ if (d.success) loadUsers(); else alert(d.error); });
+      .then(function(d){ if (d.success) { toast('Utilisateur enregistré', 'success'); loadUsers(); } else toast(d.error || 'Erreur', 'error'); });
     }
 
     loadFaces();

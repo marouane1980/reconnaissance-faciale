@@ -1,19 +1,55 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .Python
-.env
-venv/
-env/
 *.egg-info/
 dist/
 build/
+
+# Environnement
+.env
+.env.local
+venv/
+env/
+.venv/
+
+# IDE
 .idea/
 .vscode/
+*.sublime-*
+
+# Logs
 *.log
-captured_faces/*.jpg
-captured_faces/*.png
-models/*.onnx
+logs/
+
+# Données sensibles / volatiles
 .secret_key
 users.json
+cameras.json
+vehicles.json
+
+# Bases SQLite (et journaux WAL)
+*.db
+*.db-shm
+*.db-wal
+
+# Photos / datasets
+captured_faces/*.jpg
+captured_faces/*.jpeg
+captured_faces/*.png
+known_faces/
+marouane.jpg
+
+# Modèles ML (volumineux)
+models/*.onnx
+models/*.pt
+yolov8*.pt
+
+# Fichiers temporaires Office
+~$*
+
+# OS
+.DS_Store
+Thumbs.db

@@ -4,8 +4,10 @@ import json
 import time
 import shutil
 import base64
+import logging
 import threading
 import functools
+from collections import defaultdict, deque
 import numpy as np
 import cv2
 from flask import Flask, render_template, Response, request, jsonify, session, redirect, url_for, send_file
@@ -17,8 +19,54 @@ import plate_recognizer
 import vehicle_manager
 from camera_manager import CameraManager, ROOMS, FEATURES
 
+# ── Logging ──
+LOG_LEVEL = os.environ.get('FACEID_LOG_LEVEL', 'INFO').upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+)
+log = logging.getLogger('faceid')
+
 app = Flask(__name__)
 os.makedirs("known_faces", exist_ok=True)
+
+# ── Anti brute-force /login ──
+_LOGIN_WINDOW   = 60      # secondes
+_LOGIN_MAX      = 5       # tentatives ratées par fenêtre
+_LOGIN_BAN_SEC  = 300     # ban après dépassement
+_login_attempts = defaultdict(lambda: deque())   # ip -> deque[timestamps]
+_login_bans     = {}                              # ip -> ban_until_ts
+_login_lock     = threading.Lock()
+
+def _login_ip():
+    return (request.headers.get('X-Forwarded-For') or request.remote_addr or 'unknown').split(',')[0].strip()
+
+def _login_check_ban(ip):
+    with _login_lock:
+        until = _login_bans.get(ip, 0)
+        if until and until > time.time():
+            return int(until - time.time())
+        if until:
+            _login_bans.pop(ip, None)
+    return 0
+
+def _login_record_failure(ip):
+    now = time.time()
+    with _login_lock:
+        dq = _login_attempts[ip]
+        dq.append(now)
+        while dq and now - dq[0] > _LOGIN_WINDOW:
+            dq.popleft()
+        if len(dq) >= _LOGIN_MAX:
+            _login_bans[ip] = now + _LOGIN_BAN_SEC
+            dq.clear()
+            log.warning('login banned ip=%s for %ss after %d attempts', ip, _LOGIN_BAN_SEC, _LOGIN_MAX)
+
+def _login_record_success(ip):
+    with _login_lock:
+        _login_attempts.pop(ip, None)
+        _login_bans.pop(ip, None)
 
 # ── Secret key persistant ──
 _KEY_FILE = '.secret_key'
@@ -159,6 +207,13 @@ def login_page():
 
 @app.route('/login', methods=['POST'])
 def login_post():
+    ip = _login_ip()
+    ban_remaining = _login_check_ban(ip)
+    if ban_remaining > 0:
+        return jsonify({
+            'error': 'Trop de tentatives — réessayez dans {}s'.format(ban_remaining),
+            'banned_for': ban_remaining,
+        }), 429
     data = request.get_json() or {}
     username = data.get('username', '').strip()
     password = data.get('password', '')
@@ -166,7 +221,11 @@ def login_post():
     if username in users and check_password_hash(users[username]['password'], password):
         session['user'] = username
         session['role'] = users[username].get('role', 'user')
+        _login_record_success(ip)
+        log.info('login success user=%s ip=%s', username, ip)
         return jsonify({'success': True})
+    _login_record_failure(ip)
+    log.warning('login failed user=%s ip=%s', username, ip)
     return jsonify({'error': 'Identifiants incorrects'}), 401
 
 @app.route('/logout')
@@ -503,9 +562,62 @@ def cameras_meta():
     return jsonify({'rooms': ROOMS, 'features': FEATURES})
 
 
+@app.route('/cameras/test', methods=['POST'])
+@login_required
+@admin_required
+def cameras_test():
+    """Ouvre une connexion de test sur l'URL fournie et retourne le résultat."""
+    data = request.get_json() or {}
+    raw  = str(data.get('url', '0')).strip()
+    proto = data.get('protocol', 'webcam')
+    user  = (data.get('username') or '').strip()
+    pwd   = (data.get('password') or '').strip()
+    try:
+        url = int(raw)
+    except ValueError:
+        url = raw
+        if user and pwd and isinstance(url, str) and url.startswith('rtsp://') and '@' not in url:
+            url = 'rtsp://' + user + ':' + pwd + '@' + url[7:]
+    cap = None
+    try:
+        cap = cv2.VideoCapture(url)
+        opened = cap.isOpened()
+        if not opened:
+            return jsonify({'success': False, 'error': "Impossible d'ouvrir la source"}), 200
+        ok, frame = cap.read()
+        if not ok or frame is None:
+            return jsonify({'success': False, 'error': 'Source ouverte mais aucune frame lue'}), 200
+        h, w = frame.shape[:2]
+        return jsonify({'success': True, 'width': int(w), 'height': int(h), 'protocol': proto})
+    except Exception as e:
+        log.exception('camera test failed url=%s', url)
+        return jsonify({'success': False, 'error': str(e)}), 200
+    finally:
+        if cap is not None:
+            cap.release()
+
+
 # ════════════════════════════════════════════
 #  PLATES & VEHICLES ROUTES
 # ════════════════════════════════════════════
+
+@app.route('/health')
+def health():
+    return jsonify({
+        'status': 'ok',
+        'ocr':    plate_recognizer.is_ready() if hasattr(plate_recognizer, 'is_ready') else plate_recognizer.is_available(),
+        'cameras': len(_cam_mgr.all_ids()),
+    })
+
+
+@app.route('/plates/status')
+@login_required
+def plates_status():
+    return jsonify({
+        'available': plate_recognizer.is_available(),
+        'ready':     plate_recognizer.is_ready() if hasattr(plate_recognizer, 'is_ready') else plate_recognizer.is_available(),
+    })
+
 
 @app.route('/plates/results')
 @login_required
@@ -654,4 +766,6 @@ def vehicles_delete(plate):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+    port = int(os.environ.get('FACEID_PORT', '5000'))
+    log.info('Démarrage Flask sur 0.0.0.0:%d (log level=%s)', port, LOG_LEVEL)
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)

@@ -393,3 +393,8 @@ def set_on_result_callback(fn):
 
 def is_available():
     return _OCR_AVAILABLE
+
+
+def is_ready():
+    """True quand le modèle OCR est entièrement chargé et prêt à inférer."""
+    return _OCR_AVAILABLE and (_reader is not None)
