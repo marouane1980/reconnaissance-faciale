@@ -201,19 +201,6 @@
           <span class="nav-label text-[12px] font-medium text-slate-400">Historique</span>
           <span id="histNavBadge" class="ml-auto bg-green-950/60 text-green-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
         </button>
-        <button onclick="setNav('add')" id="nav-add" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
-          <i data-lucide="user-plus" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-[12px] font-medium text-slate-400">Ajouter personne</span>
-        </button>
-        <button onclick="setNav('people')" id="nav-people" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
-          <i data-lucide="users" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-[12px] font-medium text-slate-400">Personnes</span>
-          <span id="faceCountBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
-        </button>
-        <button onclick="setNav('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
-          <i data-lucide="sliders-horizontal" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-[12px] font-medium text-slate-400">Paramètres</span>
-        </button>
       </div>
 
       <!-- Analyse comportementale (pliable) -->
@@ -278,8 +265,13 @@
             <span class="nav-label text-[12px] font-medium text-slate-400">Utilisateurs</span>
             <span id="userNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
           </button>
+          <button onclick="setNav('facereco')" id="nav-facereco" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+            <i data-lucide="scan-face" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+            <span class="nav-label text-[12px] font-medium text-slate-400">Reconnaissance faciale</span>
+          </button>
         </div>
       </div>
+
 
     </nav>
 
@@ -476,7 +468,18 @@
         <div id="main-blank" class="hidden flex-1 flex items-center justify-center">
           <div class="text-center opacity-30">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="mx-auto mb-3 text-slate-600"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-            <p class="text-xs text-slate-600">Sélectionnez une option dans le menu</p>
+            <p class="text-xs text-slate-600">Sélectionnez un onglet</p>
+          </div>
+        </div>
+
+        <!-- ── Sous-en-tête onglets « Reconnaissance faciale » (Système) ── -->
+        <div id="facerecoTabs" class="hidden px-4 py-2.5 border-b border-[#1e2035] bg-[#0f1020] items-center gap-2.5 flex-shrink-0">
+          <i data-lucide="scan-face" class="w-4 h-4 text-indigo-400 flex-shrink-0"></i>
+          <span class="text-sm font-semibold text-white">Reconnaissance faciale</span>
+          <div class="ml-4 flex gap-0.5 bg-[#0c0d15] rounded-xl p-0.5">
+            <button onclick="setFaceRecoTab('add')"      id="frt-add"      class="vm-btn active text-[11px] font-semibold px-3 py-1.5 rounded-[.6rem]">＋ Ajouter</button>
+            <button onclick="setFaceRecoTab('people')"   id="frt-people"   class="vm-btn text-[11px] font-semibold px-3 py-1.5 rounded-[.6rem]">👥 Personnes</button>
+            <button onclick="setFaceRecoTab('settings')" id="frt-settings" class="vm-btn text-[11px] font-semibold px-3 py-1.5 rounded-[.6rem]">⚙ Paramètres</button>
           </div>
         </div>
 
@@ -1416,8 +1419,19 @@
     lucide.createIcons();
 
     // ── Navigation ──
-    var NAVS = ['dashboard','analyse','history','add','people','settings','behavior','behavhist','behavsettings','cameras','users','plates','vehicles','plathist'];
+    var NAVS = ['dashboard','analyse','history','add','people','settings','behavior','behavhist','behavsettings','cameras','users','plates','vehicles','plathist','facereco'];
+    var _faceRecoTab = 'add';
     function setNav(name) {
+      // Reconnaissance faciale (Système) → délègue à setFaceRecoTab
+      if (name === 'facereco') {
+        setFaceRecoTab(_faceRecoTab || 'add');
+        return;
+      }
+
+      // Hide tab bar by default; setFaceRecoTab will show it
+      var tabBar = document.getElementById('facerecoTabs');
+      if (tabBar) tabBar.style.display = 'none';
+
       NAVS.forEach(function(n) {
         var btn   = document.getElementById('nav-' + n);
         var panel = document.getElementById('panel-' + n);
@@ -1472,6 +1486,46 @@
       if (isHist)      loadHistory();
       if (isBehavHist) loadBehaviorHistory();
       if (isCameras)   loadCameras();
+    }
+
+    // ── Reconnaissance faciale (page combinée Système) ──
+    function setFaceRecoTab(tab) {
+      if (['add','people','settings'].indexOf(tab) < 0) tab = 'add';
+      _faceRecoTab = tab;
+
+      // Marquer nav-facereco actif (et non nav-add/people/settings)
+      NAVS.forEach(function(n) {
+        var btn   = document.getElementById('nav-' + n);
+        var panel = document.getElementById('panel-' + n);
+        if (btn)   btn.classList.toggle('active', n === 'facereco');
+        if (panel) panel.classList.toggle('active', n === ({add:'add',people:'people',settings:'settings'}[tab]));
+      });
+
+      // Onglets visuels
+      ['add','people','settings'].forEach(function(t) {
+        var b = document.getElementById('frt-' + t);
+        if (b) b.classList.toggle('active', t === tab);
+      });
+
+      // Afficher la barre d'onglets
+      var tabBar = document.getElementById('facerecoTabs');
+      if (tabBar) tabBar.style.display = 'flex';
+
+      // Cacher tous les autres main-*, montrer celui correspondant au tab
+      document.getElementById('main-default').style.display   = 'none';
+      document.getElementById('main-history').style.display   = 'none';
+      document.getElementById('main-behavhist').style.display = 'none';
+      document.getElementById('main-cameras').style.display   = 'none';
+      document.getElementById('main-users').style.display     = 'none';
+      document.getElementById('main-plates').style.display    = 'none';
+      document.getElementById('main-vehicles').style.display  = 'none';
+      document.getElementById('main-plathist').style.display  = 'none';
+      document.getElementById('main-add').style.display       = (tab === 'add')      ? 'flex' : 'none';
+      document.getElementById('main-people').style.display    = (tab === 'people')   ? 'flex' : 'none';
+      document.getElementById('main-blank').style.display     = (tab === 'settings') ? 'flex' : 'none';
+
+      if (tab === 'add')    onAddCamChange();
+      if (tab === 'people') loadFaces();
     }
 
     // ── Sections pliables ──
