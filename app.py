@@ -178,7 +178,8 @@ def _annotate(frame, results, beh_results=None, plate_results=None):
     return frame
 
 
-def _generate(cam_id):
+def _generate(cam_id, mode='full'):
+    """mode='full' (visages+plaques+comportement) ou 'plates' (plaques uniquement)."""
     cam = _cam_mgr.get(cam_id, safe=True) or {}
     cam_label = cam.get('label', cam_id)
     while True:
@@ -186,9 +187,18 @@ def _generate(cam_id):
         if frame is None:
             time.sleep(0.033)
             continue
-        results = _cam_mgr.get_results(cam_id)
         plate_results = plate_recognizer.get_results_for_camera(cam_label)
-        _annotate(frame, results, behavior.get_results(), plate_results)
+        if mode == 'plates':
+            _annotate_plates(frame, plate_results)
+            n_known   = sum(1 for r in (plate_results or []) if vehicle_manager.get_vehicle(r.get('plate', '')))
+            n_unknown = len(plate_results or []) - n_known
+            label = "Plaques connues: {}  Inconnues: {}".format(n_known, n_unknown)
+            (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            cv2.rectangle(frame, (8, 8), (lw + 18, lh + 18), (20, 20, 20), cv2.FILLED)
+            cv2.putText(frame, label, (13, lh + 12), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (220, 220, 220), 2)
+        else:
+            results = _cam_mgr.get_results(cam_id)
+            _annotate(frame, results, behavior.get_results(), plate_results)
         ok, buf = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 78])
         if ok:
             yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buf.tobytes() + b'\r\n')
@@ -289,7 +299,10 @@ def index():
 @login_required
 def video_feed():
     cam_id = request.args.get('cam_id') or _cam_mgr.first_id()
-    return Response(_generate(cam_id), mimetype='multipart/x-mixed-replace; boundary=frame')
+    mode   = request.args.get('mode', 'full')
+    if mode not in ('full', 'plates'):
+        mode = 'full'
+    return Response(_generate(cam_id, mode), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/capture_profile', methods=['POST'])
 @login_required
