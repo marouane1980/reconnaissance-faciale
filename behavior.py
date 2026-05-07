@@ -26,6 +26,7 @@ from collections import deque
 from datetime import datetime
 
 import behavior_classifier as _clf
+from fall_detector import FallDetector
 
 log = logging.getLogger('faceid.behavior')
 
@@ -69,16 +70,35 @@ _current_sess = None
 _hist_id      = 0
 MAX_HISTORY   = 500
 
-# ── Détection de chute ──
+# ── Détection de chute (state-machine externalisée) ──
 _fall_history       = []
 _fall_lock          = threading.Lock()
 _fall_id            = 0
-_last_fall_alert_ts = 0.0
-FALL_COOLDOWN       = 30.0     # s entre deux alertes
-FALL_DROP_WINDOW    = 1.5      # s pour passer vertical → horizontal
-FALL_STILL_WINDOW   = 1.5      # s d'immobilité confirmée après
-FALL_MIN_VELOCITY   = 0.35     # vitesse verticale min (frac/s) — y_norm dérivé du tronc
-FALL_STILL_VAR      = 0.0030   # variance des positions du COG pour considérer immobile
+
+
+def _on_fall(event):
+    global _fall_id
+    name  = event.get('name', 'Inconnu')
+    frame = event.get('frame')
+    metrics = event.get('metrics', {})
+    with _fall_lock:
+        _fall_id += 1
+        _fall_history.insert(0, {
+            'id':        _fall_id,
+            'name':      name,
+            'timestamp': _now_str(),
+            'photo':     _thumb(frame) if frame is not None else None,
+            'velocity':  metrics.get('v_cog'),
+            'tilt_deg':  metrics.get('tilt_max'),
+            'tilt_rate': metrics.get('tilt_rate'),
+            'aspect_drop': metrics.get('aspect_drop'),
+        })
+        if len(_fall_history) > 100:
+            _fall_history.pop()
+    log.warning('CHUTE CONFIRMÉE name=%s metrics=%s', name, metrics)
+
+
+_fall_detector = FallDetector(on_fall=_on_fall)
 
 # ── Buffers temporels ──
 _VOTE_FRAMES   = 7             # vote majoritaire sur 7 frames (~0,5–1 s @ 8–14 fps)
@@ -268,57 +288,11 @@ def _vote_majority():
 #  Détection de chute
 # ════════════════════════════════════════════
 
-def _check_fall(stable_pose, ts, cog_y, tilt, frame, name):
-    """Une vraie chute = tronc vertical → horizontal en peu de temps + vitesse + immobilité."""
-    global _fall_id, _last_fall_alert_ts
-
+def _check_fall(stable_pose, ts, lm, frame, name):
+    """Délègue au FallDetector (state-machine + signaux multiples)."""
     if not _fall_detect:
         return
-    if ts - _last_fall_alert_ts < FALL_COOLDOWN:
-        return
-    if stable_pose != 'allonge':
-        return
-
-    # Cherche un point récent où le tronc était nettement vertical
-    upright_pt = None
-    for (t, _cog, _tilt) in _TRACK_BUFFER:
-        if ts - t > FALL_DROP_WINDOW:
-            continue
-        if _tilt < 25:                      # tronc bien vertical
-            upright_pt = (t, _cog, _tilt)
-            break
-    if upright_pt is None:
-        return
-
-    t0, cog0, _ = upright_pt
-    dt = max(ts - t0, 0.05)
-    drop = (cog_y - cog0) / dt              # > 0 si descente (y augmente)
-    if drop < FALL_MIN_VELOCITY:
-        return
-
-    # Confirmation d'immobilité dans les FALL_STILL_WINDOW secondes précédentes
-    recent_cog = [c for (t, c, _t) in _TRACK_BUFFER if ts - t <= FALL_STILL_WINDOW]
-    if len(recent_cog) >= 4:
-        m = sum(recent_cog) / len(recent_cog)
-        var = sum((c - m) ** 2 for c in recent_cog) / len(recent_cog)
-        if var > FALL_STILL_VAR * 4:        # encore en mouvement → on attend un autre tick
-            return
-
-    # ✓ Toutes les conditions remplies
-    _last_fall_alert_ts = ts
-    with _fall_lock:
-        _fall_id += 1
-        _fall_history.insert(0, {
-            'id':        _fall_id,
-            'name':      name,
-            'timestamp': _now_str(),
-            'photo':     _thumb(frame) if frame is not None else None,
-            'velocity':  round(drop, 3),
-            'tilt_deg':  round(tilt, 1),
-        })
-        if len(_fall_history) > 100:
-            _fall_history.pop()
-    log.warning('CHUTE DÉTECTÉE name=%s velocity=%.3f tilt=%.1f', name, drop, tilt)
+    _fall_detector.update(ts, lm, frame=frame, name=name)
 
 
 # ════════════════════════════════════════════
@@ -430,10 +404,10 @@ def _worker():
                     pose_key = 'inconnu'
                     conf     = 0.5
 
-                # 6) Détection de chute (utilise les metrics heuristiques toujours présents)
+                # 6) Détection de chute (state-machine indépendante de la classification)
                 if 'cog_y' in metrics and 'tilt_deg' in metrics:
                     _TRACK_BUFFER.append((ts, metrics['cog_y'], metrics['tilt_deg']))
-                    _check_fall(pose_key, ts, metrics['cog_y'], metrics['tilt_deg'], frame, name)
+                _check_fall(pose_key, ts, lm, frame, name)
 
                 label, color, vid_text = _POSE_META.get(pose_key, _POSE_META['inconnu'])
                 results.append({
@@ -528,11 +502,24 @@ def clear_history():
 
 
 def clear_fall_history():
-    global _fall_history, _fall_id, _last_fall_alert_ts
+    global _fall_history, _fall_id
     with _fall_lock:
         _fall_history = []
         _fall_id = 0
-    _last_fall_alert_ts = 0.0
+    _fall_detector.reset()
+
+
+def get_fall_state():
+    """État live du détecteur de chute (debug / overlay UI)."""
+    return {
+        'state':   _fall_detector.state(),
+        'metrics': _fall_detector.metrics(),
+        'params':  dict(_fall_detector.params),
+    }
+
+
+def update_fall_params(params):
+    _fall_detector.update_params(params or {})
 
 
 def get_settings():

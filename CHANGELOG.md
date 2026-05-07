@@ -4,6 +4,26 @@ Toutes les évolutions notables du projet.
 
 ## [Non publié]
 
+### Détection de chute v2 — machine à état + signaux multiples
+- Nouveau module `fall_detector.py` avec une **machine à état** :
+  `UPRIGHT → FALLING → IMPACT → FALLEN → CONFIRMED → RECOVER`
+- Détection **indépendante de la classification de posture** (corrige le cas où
+  « allongé » échoue à se déclencher)
+- 4 signaux indépendants (OR) déclenchent l'état FALLING :
+  - vélocité verticale du COG (centre de gravité)
+  - vélocité verticale du nez (point haut très fiable)
+  - taux d'inclinaison du tronc en degrés/seconde
+  - chute rapide du ratio hauteur/largeur de la silhouette
+- Filtrage des faux positifs :
+  - faux mouvement court → retour UPRIGHT après 2 s sans impact
+  - assise rapide / accroupissement → tilt redescend avant confirmation
+  - reste en `RECOVER` jusqu'à ce que la personne se relève (pas de double alerte)
+- Confirmation après ≥1,5 s en FALLEN → alerte définitive
+- Cooldown abaissé de 30 s à 20 s
+- Paramètres tous ajustables via `POST /behavior/falls/params` (admin)
+- État live disponible via `GET /behavior/falls/state` (debug overlay)
+- Métriques détaillées dans chaque alerte : v_cog, tilt_max, tilt_rate, aspect_drop
+
 ### Analyse comportementale — classifieur ML supervisé (Étape A)
 - Nouveau module `behavior_classifier.py` : extraction de **28 features par frame**
   (angles, ratios, vitesses, visibilités), agrégation sur fenêtre glissante de 15 frames

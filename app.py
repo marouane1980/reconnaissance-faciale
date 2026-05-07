@@ -420,6 +420,20 @@ def behavior_falls_clear():
     behavior.clear_fall_history()
     return jsonify({'success': True})
 
+
+@app.route('/behavior/falls/state')
+@login_required
+def behavior_falls_state():
+    return jsonify(behavior.get_fall_state())
+
+
+@app.route('/behavior/falls/params', methods=['POST'])
+@login_required
+@admin_required
+def behavior_falls_params():
+    behavior.update_fall_params(request.get_json() or {})
+    return jsonify({'success': True, 'state': behavior.get_fall_state()})
+
 @app.route('/behavior/ml/status')
 @login_required
 def behavior_ml_status():
