@@ -219,10 +219,6 @@
           <span class="nav-label text-[12px] font-medium text-slate-400">Historique</span>
           <span id="behavHistBadge" class="ml-auto bg-violet-950/60 text-violet-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
         </button>
-        <button onclick="setNav('behavsettings')" id="nav-behavsettings" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
-          <i data-lucide="sliders-horizontal" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-[12px] font-medium text-slate-400">Paramètres</span>
-        </button>
       </div>
 
       <!-- Immatriculation (pliable) -->
@@ -235,11 +231,6 @@
           <i data-lucide="monitor-play" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
           <span class="nav-label text-[12px] font-medium text-slate-400">Surveillance live</span>
           <span id="plateLiveBadge" class="ml-auto bg-amber-950/60 text-amber-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">●</span>
-        </button>
-        <button onclick="setNav('vehicles')" id="nav-vehicles" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
-          <i data-lucide="car" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-[12px] font-medium text-slate-400">Véhicules</span>
-          <span id="vehicleNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
         </button>
         <button onclick="setNav('plathist')" id="nav-plathist" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
           <i data-lucide="table-2" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
@@ -268,6 +259,15 @@
           <button onclick="setNav('facereco')" id="nav-facereco" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
             <i data-lucide="scan-face" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
             <span class="nav-label text-[12px] font-medium text-slate-400">Reconnaissance faciale</span>
+          </button>
+          <button onclick="setNav('behavsettings')" id="nav-behavsettings" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+            <i data-lucide="activity" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+            <span class="nav-label text-[12px] font-medium text-slate-400">Analyse comportementale</span>
+          </button>
+          <button onclick="setNav('vehicles')" id="nav-vehicles" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+            <i data-lucide="car" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+            <span class="nav-label text-[12px] font-medium text-slate-400">Véhicules</span>
+            <span id="vehicleNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
           </button>
         </div>
       </div>
