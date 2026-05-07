@@ -190,48 +190,51 @@
         <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest group-hover:text-slate-400 transition-colors">Reconnaissance faciale</p>
         <svg id="arr-recon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
-      <div id="sec-recon" class="flex flex-col gap-1">
-        <button onclick="setNav('analyse')" id="nav-analyse" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="monitor-play" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Affichage</span>
+      <div id="sec-recon" class="flex flex-col gap-0.5">
+        <button onclick="setNav('analyse')" id="nav-analyse" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="monitor-play" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Affichage</span>
           <span id="analyseCountBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
         </button>
-        <button onclick="setNav('history')" id="nav-history" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="table-2" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Historique</span>
+        <button onclick="setNav('history')" id="nav-history" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="table-2" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Historique</span>
           <span id="histNavBadge" class="ml-auto bg-green-950/60 text-green-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
         </button>
-        <button onclick="setNav('add')" id="nav-add" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="user-plus" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Ajouter personne</span>
+        <button onclick="setNav('add')" id="nav-add" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="user-plus" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Ajouter personne</span>
         </button>
-        <button onclick="setNav('people')" id="nav-people" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="users" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Personnes</span>
+        <button onclick="setNav('people')" id="nav-people" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="users" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Personnes</span>
           <span id="faceCountBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
         </button>
-        <button onclick="setNav('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="sliders-horizontal" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Paramètres</span>
+        <button onclick="setNav('settings')" id="nav-settings" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="sliders-horizontal" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Paramètres</span>
         </button>
       </div>
 
       <!-- Analyse comportementale (pliable) -->
       <button onclick="toggleSec('behav')" class="flex items-center justify-between w-full px-2 mt-4 mb-1 group gap-1">
-        <p class="text-[9px] font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap truncate group-hover:text-slate-400 transition-colors">Analyse comportementale</p>
+        <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap truncate group-hover:text-slate-400 transition-colors">Analyse comportementale</p>
         <svg id="arr-behav" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
-      <div id="sec-behav" class="flex flex-col gap-1">
-        <button onclick="setNav('behavior')" id="nav-behavior" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
-          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Posture &amp; Gestes</span>
-          <span id="behaviorBadge" class="bg-violet-950/60 text-violet-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">●</span>
+      <div id="sec-behav" class="flex flex-col gap-0.5">
+        <button onclick="setNav('behavior')" id="nav-behavior" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="activity" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Posture &amp; Gestes</span>
+          <span id="behaviorBadge" class="ml-auto bg-violet-950/60 text-violet-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">●</span>
         </button>
-        <button onclick="setNav('behavhist')" id="nav-behavhist" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
-          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Historique</span>
-          <span id="behavHistBadge" class="bg-violet-950/60 text-violet-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
+        <button onclick="setNav('behavhist')" id="nav-behavhist" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="table-2" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Historique</span>
+          <span id="behavHistBadge" class="ml-auto bg-violet-950/60 text-violet-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
         </button>
-        <button onclick="setNav('behavsettings')" id="nav-behavsettings" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
-          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Paramètres</span>
+        <button onclick="setNav('behavsettings')" id="nav-behavsettings" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="sliders-horizontal" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Paramètres</span>
         </button>
       </div>
 
@@ -240,37 +243,42 @@
         <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest group-hover:text-slate-400 transition-colors">Immatriculation</p>
         <svg id="arr-plate" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
-      <div id="sec-plate" class="flex flex-col gap-1">
-        <button onclick="setNav('plates')" id="nav-plates" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
-          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Surveillance live</span>
-          <span id="plateLiveBadge" class="bg-amber-950/60 text-amber-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">●</span>
+      <div id="sec-plate" class="flex flex-col gap-0.5">
+        <button onclick="setNav('plates')" id="nav-plates" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="monitor-play" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Surveillance live</span>
+          <span id="plateLiveBadge" class="ml-auto bg-amber-950/60 text-amber-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">●</span>
         </button>
-        <button onclick="setNav('vehicles')" id="nav-vehicles" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
-          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Véhicules</span>
-          <span id="vehicleNavBadge" class="bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
+        <button onclick="setNav('vehicles')" id="nav-vehicles" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="car" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Véhicules</span>
+          <span id="vehicleNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
         </button>
-        <button onclick="setNav('plathist')" id="nav-plathist" class="nav-item flex items-center justify-between w-full px-2 py-1.5 rounded-lg text-left">
-          <span class="nav-label text-[10px] font-semibold text-slate-600 uppercase tracking-widest">Historique</span>
-          <span id="platHistBadge" class="bg-amber-950/60 text-amber-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
+        <button onclick="setNav('plathist')" id="nav-plathist" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+          <i data-lucide="table-2" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+          <span class="nav-label text-[12px] font-medium text-slate-400">Historique</span>
+          <span id="platHistBadge" class="ml-auto bg-amber-950/60 text-amber-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full hidden">0</span>
         </button>
       </div>
 
-      <!-- Système (pliable) -->
-      <button onclick="toggleSec('sys')" class="flex items-center justify-between w-full px-2 mt-4 mb-1 group">
-        <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest group-hover:text-slate-400 transition-colors">Système</p>
-        <svg id="arr-sys" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-      <div id="sec-sys" class="flex flex-col gap-1">
-        <button onclick="setNav('cameras')" id="nav-cameras" class="nav-item hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="camera" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Caméras</span>
-          <span id="camNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
+      <!-- Système (pliable, admin uniquement) -->
+      <div id="sysWrap" class="hidden">
+        <button onclick="toggleSec('sys')" class="flex items-center justify-between w-full px-2 mt-4 mb-1 group">
+          <p class="text-[10px] font-semibold text-slate-600 uppercase tracking-widest group-hover:text-slate-400 transition-colors">Système</p>
+          <svg id="arr-sys" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-slate-600 transition-transform duration-200 flex-shrink-0"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <button onclick="setNav('users')" id="nav-users" class="nav-item hidden w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left">
-          <i data-lucide="user-cog" class="nav-icon w-4 h-4 text-slate-500 flex-shrink-0"></i>
-          <span class="nav-label text-sm font-medium text-slate-400">Utilisateurs</span>
-          <span id="userNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
-        </button>
+        <div id="sec-sys" class="flex flex-col gap-0.5">
+          <button onclick="setNav('cameras')" id="nav-cameras" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+            <i data-lucide="camera" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+            <span class="nav-label text-[12px] font-medium text-slate-400">Caméras</span>
+            <span id="camNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
+          </button>
+          <button onclick="setNav('users')" id="nav-users" class="nav-item w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left">
+            <i data-lucide="user-cog" class="nav-icon w-3.5 h-3.5 text-slate-500 flex-shrink-0"></i>
+            <span class="nav-label text-[12px] font-medium text-slate-400">Utilisateurs</span>
+            <span id="userNavBadge" class="ml-auto bg-[#1e2035] text-slate-400 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">0</span>
+          </button>
+        </div>
       </div>
 
     </nav>
@@ -2797,8 +2805,7 @@
       document.getElementById('sidebarRole').textContent     = d.role === 'admin' ? 'Administrateur' : 'Utilisateur';
       loadCamMeta();  // needed by all users for camera selectors
       if (d.role === 'admin') {
-        document.getElementById('nav-cameras').classList.remove('hidden');
-        document.getElementById('nav-users').classList.remove('hidden');
+        document.getElementById('sysWrap').classList.remove('hidden');
         document.getElementById('dashAdminActions').classList.remove('hidden');
         loadUsers();
       }
