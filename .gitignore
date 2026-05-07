@@ -45,7 +45,11 @@ marouane.jpg
 # Modèles ML (volumineux)
 models/*.onnx
 models/*.pt
+models/*.pkl
 yolov8*.pt
+
+# Clips d'entraînement comportemental
+behavior_recordings/
 
 # Fichiers temporaires Office
 ~$*

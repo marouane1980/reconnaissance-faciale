@@ -1103,6 +1103,46 @@
             </button>
             <div id="behavSettingsMsg" class="text-[11px] min-h-[14px]"></div>
           </div>
+
+          <!-- ── Modèle ML & Enregistrement ── -->
+          <div class="gradient-border rounded-xl p-3 flex flex-col gap-2">
+            <p class="text-[11px] text-slate-400 font-semibold flex items-center gap-1.5">
+              <i data-lucide="brain" class="w-3.5 h-3.5 text-violet-400"></i>
+              Classifieur ML
+            </p>
+            <p class="text-[10px] text-slate-600 leading-relaxed" id="behavMlInfo">Statut : —</p>
+            <button onclick="reloadBehaviorModel()" class="w-full text-[11px] bg-[#1e2035] hover:bg-[#2a2b3d] text-slate-400 rounded-lg py-1.5 transition-colors">
+              Recharger le modèle
+            </button>
+
+            <p class="text-[11px] text-slate-400 font-semibold mt-2 flex items-center gap-1.5">
+              <i data-lucide="circle-dot" class="w-3.5 h-3.5 text-red-400"></i>
+              Enregistrer un clip étiqueté
+            </p>
+            <p class="text-[10px] text-slate-600 leading-relaxed">Pour entraîner le modèle. Effectuez la posture devant la caméra puis arrêtez.</p>
+            <select id="recLabel" class="w-full bg-[#0c0d15] border border-[#2a2b3d] rounded-lg px-2 py-1.5 text-[11px] text-slate-200 outline-none focus:border-violet-500">
+              <option value="debout">🧍 Debout</option>
+              <option value="assis">🪑 Assis(e)</option>
+              <option value="allonge">🛌 Allongé(e)</option>
+              <option value="penche">🙇 Penché(e)</option>
+              <option value="course">🏃 Course</option>
+              <option value="saut">⬆️ Saut</option>
+              <option value="grimpe">🧗 Grimpe</option>
+              <option value="chute">⚠️ Chute</option>
+            </select>
+            <div class="flex gap-2">
+              <button id="recStartBtn" onclick="startRecording()" class="flex-1 flex items-center justify-center gap-1.5 bg-red-600/20 hover:bg-red-600/30 border border-red-600/40 text-red-300 text-[11px] font-semibold rounded-lg py-1.5 transition-colors">
+                <i data-lucide="circle" class="w-3 h-3"></i> Démarrer
+              </button>
+              <button id="recStopBtn" onclick="stopRecording()" disabled class="flex-1 flex items-center justify-center gap-1.5 bg-slate-700/40 border border-slate-700 text-slate-400 text-[11px] font-semibold rounded-lg py-1.5 transition-colors disabled:opacity-50">
+                <i data-lucide="square" class="w-3 h-3"></i> Arrêter
+              </button>
+            </div>
+            <p id="recState" class="text-[10px] text-slate-600">—</p>
+            <button onclick="loadRecordings()" class="text-[10px] text-slate-500 hover:text-slate-300 underline text-left">Voir clips enregistrés</button>
+            <div id="recList" class="hidden flex flex-col gap-1 mt-1 max-h-40 overflow-y-auto"></div>
+            <p class="text-[10px] text-slate-600 mt-1 leading-relaxed">Quand vous avez assez de clips :<br><code class="text-violet-400 bg-[#0c0d15] px-1 py-0.5 rounded">python train_behavior.py</code><br>puis « Recharger le modèle ».</p>
+          </div>
         </div>
 
         <!-- Panel: Caméras (formulaire ajout/édition) -->
@@ -2002,7 +2042,118 @@
       });
     }
 
+    // ── ML & Recording ──
+    function refreshBehaviorMl() {
+      fetch('/behavior/ml/status').then(function(r){return r.json();}).then(function(d){
+        var el = document.getElementById('behavMlInfo');
+        if (!el) return;
+        if (d.loaded) {
+          var meta = d.meta || {};
+          var dt = meta.trained_at ? new Date(meta.trained_at * 1000).toLocaleString() : '?';
+          el.innerHTML = '<span class="text-green-400">✓ Modèle chargé</span> · classes : '
+                       + (meta.classes||[]).map(escHtml).join(', ')
+                       + ' · entraîné le ' + escHtml(dt)
+                       + ' · ' + (meta.n_samples||0) + ' échantillons';
+        } else {
+          el.innerHTML = '<span class="text-amber-400">Aucun modèle entraîné</span> — fallback heuristiques. Enregistrez des clips puis lancez <code>python train_behavior.py</code>.';
+        }
+      }).catch(function(){});
+    }
+
+    function reloadBehaviorModel() {
+      fetch('/behavior/ml/reload', { method: 'POST' })
+        .then(function(r){return r.json();})
+        .then(function(d){
+          toast(d.loaded ? 'Modèle ML rechargé' : 'Aucun modèle trouvé', d.loaded ? 'success' : 'warn');
+          refreshBehaviorMl();
+        })
+        .catch(function(){ toast('Erreur réseau', 'error'); });
+    }
+
+    function refreshRecState() {
+      fetch('/behavior/record/state').then(function(r){return r.json();}).then(function(d){
+        var startBtn = document.getElementById('recStartBtn');
+        var stopBtn  = document.getElementById('recStopBtn');
+        var st       = document.getElementById('recState');
+        if (d.active) {
+          startBtn.disabled = true;
+          stopBtn.disabled  = false;
+          stopBtn.classList.remove('disabled:opacity-50');
+          stopBtn.className = 'flex-1 flex items-center justify-center gap-1.5 bg-red-600/30 hover:bg-red-600/40 border border-red-600/50 text-red-200 text-[11px] font-semibold rounded-lg py-1.5 transition-colors';
+          st.innerHTML = '<span class="text-red-400">● Enregistrement</span> · ' + escHtml(d.label) + ' · ' + d.frames + ' frames';
+        } else {
+          startBtn.disabled = false;
+          stopBtn.disabled  = true;
+          stopBtn.className = 'flex-1 flex items-center justify-center gap-1.5 bg-slate-700/40 border border-slate-700 text-slate-400 text-[11px] font-semibold rounded-lg py-1.5 transition-colors disabled:opacity-50';
+          st.textContent = 'Inactif';
+        }
+      }).catch(function(){});
+    }
+
+    function startRecording() {
+      var label = document.getElementById('recLabel').value;
+      fetch('/behavior/record/start', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({label: label})
+      }).then(function(r){return r.json();}).then(function(d){
+        if (d.success) { toast('Enregistrement démarré : ' + label, 'info'); refreshRecState(); }
+        else toast(d.error || 'Erreur', 'error');
+      }).catch(function(){ toast('Erreur réseau', 'error'); });
+    }
+
+    function stopRecording() {
+      fetch('/behavior/record/stop', { method: 'POST' })
+        .then(function(r){return r.json();})
+        .then(function(d){
+          if (d.success) {
+            toast('Clip sauvegardé : ' + d.recording.frames + ' frames', 'success');
+            refreshRecState();
+            loadRecordings();
+          } else {
+            toast(d.error || 'Erreur', 'warn');
+            refreshRecState();
+          }
+        })
+        .catch(function(){ toast('Erreur réseau', 'error'); });
+    }
+
+    function loadRecordings() {
+      fetch('/behavior/record/list').then(function(r){return r.json();}).then(function(rows){
+        var el = document.getElementById('recList');
+        if (!el) return;
+        el.classList.remove('hidden');
+        if (!rows.length) {
+          el.innerHTML = '<p class="text-[10px] text-slate-600 italic">Aucun clip</p>';
+          return;
+        }
+        el.innerHTML = rows.map(function(r){
+          return '<div class="flex items-center gap-2 bg-[#0c0d15] rounded-lg px-2 py-1.5">'
+               + '<span class="text-[10px] text-violet-400 font-semibold w-14">' + escHtml(r.label) + '</span>'
+               + '<span class="text-[10px] text-slate-300 flex-1 truncate">' + escHtml(r.file) + '</span>'
+               + '<span class="text-[10px] text-slate-600">' + r.frames + ' fr</span>'
+               + '<button onclick="deleteRecording(\'' + escHtml(r.file) + '\')" class="text-[10px] text-red-400 hover:text-red-300">✕</button>'
+               + '</div>';
+        }).join('');
+      }).catch(function(){});
+    }
+
+    function deleteRecording(fname) {
+      if (!confirm('Supprimer le clip ' + fname + ' ?')) return;
+      fetch('/behavior/record/' + encodeURIComponent(fname), { method: 'DELETE' })
+        .then(function(r){return r.json();})
+        .then(function(d){ if (d.success) { toast('Clip supprimé', 'info'); loadRecordings(); } });
+    }
+
+    // Init au montage de la page
+    setInterval(function() {
+      var p = document.getElementById('panel-behavsettings');
+      if (p && p.classList.contains('active')) refreshRecState();
+    }, 1000);
+
     // Charger les paramètres au démarrage
+    refreshBehaviorMl();
+    refreshRecState();
     fetch('/behavior/settings').then(function(r){return r.json();}).then(function(d){
       _lmOn   = d.show_landmarks || false;
       _fallOn = d.fall_detect !== false;

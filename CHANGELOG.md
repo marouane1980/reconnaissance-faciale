@@ -4,6 +4,29 @@ Toutes les évolutions notables du projet.
 
 ## [Non publié]
 
+### Analyse comportementale — classifieur ML supervisé (Étape A)
+- Nouveau module `behavior_classifier.py` : extraction de **28 features par frame**
+  (angles, ratios, vitesses, visibilités), agrégation sur fenêtre glissante de 15 frames
+  (mean / std / range / velocity → 112 features finales)
+- Pipeline d'inférence : si `models/behavior_classifier.pkl` existe, le modèle ML
+  prend le pas sur les heuristiques ; sinon fallback automatique
+- Réponse `/behavior` enrichie d'un champ `source` : `ml` ou `heuristic`
+- API d'enregistrement de clips étiquetés (admin) :
+  - `POST /behavior/record/start` (label = debout/assis/allonge/penche/course/saut/grimpe/chute)
+  - `POST /behavior/record/stop`
+  - `GET  /behavior/record/state` / `list`
+  - `DELETE /behavior/record/<fname>`
+  - Clips persistés dans `behavior_recordings/*.jsonl` (gitignoré)
+- Statut & rechargement modèle :
+  - `GET  /behavior/ml/status`
+  - `POST /behavior/ml/reload` (admin) — recharge sans redémarrer Flask
+- Script `train_behavior.py` : charge les JSONL, entraîne un
+  `HistGradientBoostingClassifier`, sauvegarde le pickle dans `models/`
+- Mini panneau UI dans Système → Analyse comportementale :
+  statut modèle, sélection label, démarrer/arrêter enregistrement, liste des clips,
+  bouton « Recharger le modèle »
+- `scikit-learn` ajouté aux dépendances optionnelles
+
 ### Analyse comportementale (refonte)
 - Classification basée sur l'inclinaison du tronc (en degrés) et l'angle des genoux, invariante à la distance caméra
 - Nouvelle posture **Penché(e)** (tilt 35–55°) qui évite les anciens faux positifs « Allongé »

@@ -420,6 +420,65 @@ def behavior_falls_clear():
     behavior.clear_fall_history()
     return jsonify({'success': True})
 
+@app.route('/behavior/ml/status')
+@login_required
+def behavior_ml_status():
+    return jsonify(behavior.ml_status())
+
+
+@app.route('/behavior/ml/reload', methods=['POST'])
+@login_required
+@admin_required
+def behavior_ml_reload():
+    ok = behavior.reload_model()
+    return jsonify({'success': True, 'loaded': ok})
+
+
+@app.route('/behavior/record/state')
+@login_required
+def behavior_record_state():
+    return jsonify(behavior.recording_state())
+
+
+@app.route('/behavior/record/start', methods=['POST'])
+@login_required
+@admin_required
+def behavior_record_start():
+    data  = request.get_json() or {}
+    label = data.get('label', '')
+    cam   = data.get('cam', '')
+    ok, msg = behavior.start_recording(label, cam)
+    if ok:
+        return jsonify({'success': True})
+    return jsonify({'error': msg}), 400
+
+
+@app.route('/behavior/record/stop', methods=['POST'])
+@login_required
+@admin_required
+def behavior_record_stop():
+    ok, info = behavior.stop_recording()
+    if ok:
+        return jsonify({'success': True, 'recording': info})
+    return jsonify({'error': info}), 400
+
+
+@app.route('/behavior/record/list')
+@login_required
+@admin_required
+def behavior_record_list():
+    return jsonify(behavior.list_recordings())
+
+
+@app.route('/behavior/record/<fname>', methods=['DELETE'])
+@login_required
+@admin_required
+def behavior_record_delete(fname):
+    if behavior.delete_recording(fname):
+        return jsonify({'success': True})
+    return jsonify({'error': 'Introuvable'}), 404
+
+
 @app.route('/behavior/settings', methods=['GET'])
 @login_required
 def behavior_settings_get():

@@ -25,6 +25,8 @@ import logging
 from collections import deque
 from datetime import datetime
 
+import behavior_classifier as _clf
+
 log = logging.getLogger('faceid.behavior')
 
 try:
@@ -82,6 +84,14 @@ FALL_STILL_VAR      = 0.0030   # variance des positions du COG pour considérer 
 _VOTE_FRAMES   = 7             # vote majoritaire sur 7 frames (~0,5–1 s @ 8–14 fps)
 _RAW_BUFFER    = deque(maxlen=_VOTE_FRAMES)         # [(pose, conf)]
 _TRACK_BUFFER  = deque(maxlen=60)                   # [(ts, cog_y_norm, tilt_deg)]
+
+# ── Buffer features ML (fenêtre glissante 15 frames ~1 s) ──
+_FEAT_WINDOW   = 15
+_feat_buffer   = _clf.FeatureBuffer(window=_FEAT_WINDOW)
+
+# ── Enregistrement de clips étiquetés (pour entraînement offline) ──
+_recording      = None     # {'label': ..., 'frames': [], 'started_at': ts, 'cam': ...}
+_recording_lock = threading.Lock()
 
 _POSE_META = {
     'debout':  ('Debout',     'green',  'Debout'),
@@ -384,21 +394,43 @@ def _worker():
             if out.pose_landmarks:
                 _last_landmarks = out.pose_landmarks
                 lm = out.pose_landmarks.landmark
-                pose_raw, conf_raw, metrics = _classify(lm)
 
-                # Buffer pour vote majoritaire
+                # 1) Heuristiques (toujours calculées : utile pour la chute via metrics)
+                pose_raw, conf_raw, metrics = _classify(lm)
+                ts = time.time()
+
+                # 2) Features ML — toujours extraites pour permettre l'enregistrement
+                frame_feats, vis = _clf.extract_features(lm)
+                source = 'heuristic'
+                if vis:
+                    _feat_buffer.push(ts, frame_feats)
+                    # Enregistrement clip étiqueté
+                    with _recording_lock:
+                        if _recording is not None:
+                            _recording['frames'].append({'ts': ts, 'features': frame_feats})
+
+                    # 3) Si modèle entraîné disponible, on l'utilise
+                    if _clf.is_loaded() and _feat_buffer.is_ready():
+                        agg = _feat_buffer.aggregate()
+                        pred = _clf.predict(agg)
+                        if pred is not None:
+                            pose_raw, conf_raw = pred
+                            source = 'ml'
+                else:
+                    _feat_buffer.clear()
+
+                # 4) Vote majoritaire sur la prédiction (heuristique ou ML)
                 _RAW_BUFFER.append((pose_raw, conf_raw))
                 pose_key, conf = _vote_majority()
 
-                # Filtre par postures suivies
+                # 5) Filtre postures suivies
                 with _settings_lock:
                     tracked = set(_tracked_poses)
                 if pose_key not in tracked:
                     pose_key = 'inconnu'
                     conf     = 0.5
 
-                # Suivi temporel pour la chute
-                ts = time.time()
+                # 6) Détection de chute (utilise les metrics heuristiques toujours présents)
                 if 'cog_y' in metrics and 'tilt_deg' in metrics:
                     _TRACK_BUFFER.append((ts, metrics['cog_y'], metrics['tilt_deg']))
                     _check_fall(pose_key, ts, metrics['cog_y'], metrics['tilt_deg'], frame, name)
@@ -412,11 +444,13 @@ def _worker():
                     'confidence': round(conf * 100),
                     'name':       name,
                     'metrics':    metrics,
+                    'source':     source,
                 })
                 _update_session(pose_key, name, frame, cam_label)
             else:
                 _last_landmarks = None
                 _RAW_BUFFER.clear()
+                _feat_buffer.clear()
         except Exception as e:
             log.exception('worker error: %s', e)
         finally:
@@ -435,8 +469,9 @@ def start():
     if not _AVAILABLE or _running:
         return
     _running = True
+    _clf.load_model()
     threading.Thread(target=_worker, daemon=True).start()
-    log.info('module behavior démarré (mediapipe pose)')
+    log.info('module behavior démarré (mediapipe pose, ml=%s)', _clf.is_loaded())
 
 
 def submit(frame, face_results=None, cam_label=''):
@@ -526,3 +561,108 @@ def apply_settings(data):
 
 def is_available():
     return _AVAILABLE
+
+
+def ml_status():
+    """Statut du modèle ML (chargé ou non, métadonnées)."""
+    return {
+        'loaded': _clf.is_loaded(),
+        'meta':   _clf.get_meta(),
+    }
+
+
+def reload_model():
+    """Recharge le modèle ML depuis disque (après entraînement)."""
+    return _clf.load_model()
+
+
+# ── Enregistrement de clips étiquetés ──
+
+import os, json
+RECORDINGS_DIR = 'behavior_recordings'
+
+def recording_state():
+    with _recording_lock:
+        if _recording is None:
+            return {'active': False}
+        return {
+            'active':     True,
+            'label':      _recording['label'],
+            'cam':        _recording.get('cam', ''),
+            'started_at': _recording['started_at'],
+            'frames':     len(_recording['frames']),
+        }
+
+
+def start_recording(label, cam_label=''):
+    global _recording
+    label = (label or '').strip().lower()
+    if not label:
+        return False, 'Label requis'
+    valid = {'debout', 'assis', 'allonge', 'penche', 'course', 'saut', 'grimpe', 'chute'}
+    if label not in valid:
+        return False, 'Label invalide (autorisé : ' + ','.join(sorted(valid)) + ')'
+    with _recording_lock:
+        _recording = {
+            'label':      label,
+            'cam':        cam_label,
+            'started_at': time.time(),
+            'frames':     [],
+        }
+    log.info('recording started label=%s cam=%s', label, cam_label)
+    return True, 'ok'
+
+
+def stop_recording():
+    global _recording
+    with _recording_lock:
+        if _recording is None:
+            return False, 'Aucun enregistrement actif'
+        rec = _recording
+        _recording = None
+    if len(rec['frames']) < 5:
+        log.warning('recording trop court (%d frames) — ignoré', len(rec['frames']))
+        return False, 'Clip trop court (< 5 frames) — ignoré'
+    os.makedirs(RECORDINGS_DIR, exist_ok=True)
+    fname = '{}_{:.0f}.jsonl'.format(rec['label'], rec['started_at'])
+    path = os.path.join(RECORDINGS_DIR, fname)
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            for fr in rec['frames']:
+                f.write(json.dumps({'ts': fr['ts'], 'features': fr['features'],
+                                    'label': rec['label']}) + '\n')
+    except Exception as e:
+        log.exception('save recording failed: %s', e)
+        return False, str(e)
+    log.info('recording saved %s (%d frames)', path, len(rec['frames']))
+    return True, {'file': fname, 'frames': len(rec['frames']), 'label': rec['label']}
+
+
+def list_recordings():
+    if not os.path.isdir(RECORDINGS_DIR):
+        return []
+    out = []
+    for f in sorted(os.listdir(RECORDINGS_DIR)):
+        if not f.endswith('.jsonl'):
+            continue
+        path = os.path.join(RECORDINGS_DIR, f)
+        try:
+            stat = os.stat(path)
+            label = f.split('_', 1)[0]
+            with open(path, encoding='utf-8') as fp:
+                n = sum(1 for _ in fp)
+            out.append({'file': f, 'label': label, 'frames': n,
+                        'size': stat.st_size, 'mtime': int(stat.st_mtime)})
+        except Exception:
+            continue
+    return out
+
+
+def delete_recording(fname):
+    safe = os.path.basename(fname)
+    path = os.path.join(RECORDINGS_DIR, safe)
+    if not os.path.exists(path) or not safe.endswith('.jsonl'):
+        return False
+    os.remove(path)
+    log.info('recording deleted %s', safe)
+    return True
